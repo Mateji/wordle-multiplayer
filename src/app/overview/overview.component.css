@@ -1,0 +1,82 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.letter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.letter-row {
+    display: flex;
+    gap: 10px;
+}
+
+.letter {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    text-align: center;
+    border: 2px solid #a6a6a6;
+    transition:
+        background-color 140ms ease-out,
+        color 140ms ease-out,
+        border-color 140ms ease-out,
+        box-shadow 140ms ease-out,
+        transform 140ms ease-out;
+}
+
+.letter.correct,
+.letter.present,
+.letter.absent {
+    animation: flipIn 180ms ease-out;
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.0);
+}
+
+.letter.correct {
+    background: #6aaa64;
+    color: #fff;
+    border-color: #5b8f54;
+}
+
+.letter.present {
+    background: #c9b458;
+    color: #fff;
+    border-color: #a89647;
+}
+
+.letter.absent {
+    background: #787c7e;
+    color: #fff;
+    border-color: #5f6364;
+}
+
+.submit-button {
+    margin-top: 10px;
+    padding: 8px 16px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 100%;
+}
+
+@keyframes flipIn {
+    0% {
+        transform: scale(0.96);
+        box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.0);
+    }
+
+    60% {
+        transform: scale(1.04);
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+    }
+
+    /* “gegenläufig” */
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(0, 0, 0, 0.0);
+    }
+}

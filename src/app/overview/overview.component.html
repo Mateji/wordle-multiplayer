@@ -1,0 +1,22 @@
+<div class="container">
+    <p>Wordle test</p>
+    <form (submit)="onSubmit($event)">
+        <div class="letter-container" #lettersContainer>
+            @for (row of rows; track $index; let rowIndex = $index) {
+            <div class="letter-row">
+                @for (cell of row.cells; track $index; let cellIndex = $index) {
+                <input #letterInput type="text" class="letter" name="one" appSingleLetter
+                    [value]="row.cells[cellIndex].letter"
+                    [disabled]="row.locked"
+                    [attr.tabindex]="row.locked ? -1 : 0"
+                    [class.correct]="row.cells[cellIndex].state === 'correct'"
+                    [class.present]="row.cells[cellIndex].state === 'present'"
+                    [class.absent]="row.cells[cellIndex].state === 'absent'"
+                    [class.unset]="row.cells[cellIndex].state === 'unset'" />
+                }
+            </div>
+            }
+        </div>
+        <button class="submit-button" type="submit">Submit</button>
+    </form>
+</div>

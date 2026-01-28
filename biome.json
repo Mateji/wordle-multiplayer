@@ -1,0 +1,178 @@
+{
+    "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+    "root": true,
+    "files": {
+        "includes": ["**", "!dist", "!node_modules", "!.angular", "!coverage", "!src/assets"],
+        "ignoreUnknown": true
+    },
+    "vcs": {
+        "enabled": true,
+        "clientKind": "git",
+        "useIgnoreFile": true
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 160,
+        "useEditorconfig": false
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "single",
+            "semicolons": "always",
+            "quoteProperties": "asNeeded",
+            "trailingCommas": "none"
+        },
+        "parser": {
+            "unsafeParameterDecoratorsEnabled": true
+        },
+        "linter": {
+            "enabled": true
+        },
+        "assist": {
+            "enabled": true
+        }
+    },
+    "json": {
+        "formatter": {
+            "indentStyle": "space",
+            "indentWidth": 4,
+            "lineWidth": 160,
+            "trailingCommas": "none"
+        }
+    },
+    "css": {
+        "formatter": {
+            "indentStyle": "space",
+            "indentWidth": 4,
+            "lineWidth": 160,
+            "quoteStyle": "single"
+        }
+    },
+    "html": {
+        "parser": {
+            "interpolation": true
+        },
+        "formatter": {
+            "enabled": true,
+            "indentStyle": "space",
+            "indentWidth": 4,
+            "lineWidth": 160,
+            "bracketSameLine": false
+        }
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "recommended": true,
+            "style": {
+                "useImportType": "off",
+                "useNamingConvention": {
+                    "level": "warn",
+                    "options": {
+                        "strictCase": false,
+                        "conventions": [
+                            {
+                                "selector": {
+                                    "kind": "enum"
+                                },
+                                "formats": ["PascalCase"]
+                            },
+                            {
+                                "selector": {
+                                    "kind": "enumMember"
+                                },
+                                "formats": ["PascalCase"]
+                            },
+                            {
+                                "selector": {
+                                    "kind": "classProperty",
+                                    "modifiers": ["private"]
+                                },
+                                "match": "(_?[a-z][a-zA-Z0-9]*\\$?|[A-Z][a-zA-Z0-9]*)"
+                            },
+                            {
+                                "selector": {
+                                    "kind": "classProperty"
+                                },
+                                "match": "(_?[a-z][a-zA-Z0-9]*\\$?|[A-Z][a-zA-Z0-9]*)"
+                            },
+                            {
+                                "selector": {
+                                    "kind": "classMethod",
+                                    "modifiers": ["private"]
+                                },
+                                "match": "_?[a-z][a-zA-Z0-9]*"
+                            },
+                            {
+                                "selector": {
+                                    "kind": "const",
+                                    "scope": "global"
+                                },
+                                "formats": ["CONSTANT_CASE", "camelCase"]
+                            },
+                            {
+                                "selector": {
+                                    "kind": "variable"
+                                },
+                                "match": "[a-z][a-zA-Z0-9]*\\$?"
+                            }
+                        ]
+                    }
+                }
+            },
+            "correctness": {
+                "noUnusedImports": "warn",
+                "noUnknownPseudoElement": "off",
+                "noUnusedVariables": "warn",
+                "noUnreachable": "error",
+                "noConstantCondition": "warn",
+                "noConstAssign": "error",
+                "noConstantMathMinMaxClamp": "error",
+                "noConstructorReturn": "error",
+                "noEmptyCharacterClassInRegex": "error",
+                "noEmptyPattern": "error",
+                "noGlobalDirnameFilename": "error",
+                "noGlobalObjectCalls": "error",
+                "noInnerDeclarations": "error",
+                "noInvalidBuiltinInstantiation": "error",
+                "noInvalidConstructorSuper": "error",
+                "noInvalidUseBeforeDeclaration": "error",
+                "noNonoctalDecimalEscape": "error",
+                "noPrecisionLoss": "warn",
+                "noPrivateImports": "error",
+                "noSelfAssign": "error",
+                "noSetterReturn": "error",
+                "noStringCaseMismatch": "warn",
+                "noSwitchDeclarations": "error",
+                "noUnreachableSuper": "error",
+                "noUnsafeFinally": "error",
+                "noUnsafeOptionalChaining": "error",
+                "noUnusedFunctionParameters": "error",
+                "noUnusedLabels": "error",
+                "noUnusedPrivateClassMembers": "error",
+                "noVoidElementsWithChildren": "error",
+                "noVoidTypeReturn": "warn"
+            },
+            "performance": {
+                "noAccumulatingSpread": "warn",
+                "noDynamicNamespaceImportAccess": "warn"
+            },
+            "security": {
+                "recommended": true
+            },
+            "suspicious": {
+                "recommended": true
+            }
+        }
+    },
+    "assist": {
+        "enabled": true,
+        "actions": {
+            "source": {
+                "organizeImports": "on"
+            }
+        }
+    }
+}
