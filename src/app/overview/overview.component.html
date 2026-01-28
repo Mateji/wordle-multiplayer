@@ -3,7 +3,7 @@
     <form (submit)="onSubmit($event)">
         <div class="letter-container" #lettersContainer>
             @for (row of rows; track $index; let rowIndex = $index) {
-            <div class="letter-row">
+            <div class="letter-row" [class.row-enter]="row.enter">
                 @for (cell of row.cells; track $index; let cellIndex = $index) {
                 <input #letterInput type="text" class="letter" name="one" appSingleLetter
                     [value]="row.cells[cellIndex].letter"

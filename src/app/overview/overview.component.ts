@@ -11,6 +11,7 @@ type Cell = {
 type Row = {
     cells: Cell[];
     locked: boolean;
+    enter?: boolean;
 };
 
 @Component({
@@ -52,6 +53,10 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         const end = start + 5;
 
         const rowInputs = this.letterInputs.toArray().slice(start, end);
+        if (rowInputs.some((input) => !input.nativeElement.value)) {
+            return; // nicht submitten, wenn ein Feld leer ist
+        }
+
         this.submittedText = rowInputs.map((input) => input.nativeElement.value).join('');
 
         this.submittedText = this.submittedText.toUpperCase();
@@ -70,8 +75,18 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         }
 
         this.rows[this.activeRow].locked = true;
-        this.rows.push({ locked: false, cells: Array.from({ length: 5 }, () => ({ letter: '', state: 'unset' })) });
+
+        this.rows.push({
+            locked: false,
+            enter: true,
+            cells: Array.from({ length: 5 }, () => ({ letter: '', state: 'unset' })),
+        });
         this.activeRow++;
+
+        setTimeout(() => {
+            const newRow = this.rows[this.activeRow];
+            if (newRow) newRow.enter = false;
+        }, 320);
 
         this.pendingFocusIndex = this.activeRow * 5;
 

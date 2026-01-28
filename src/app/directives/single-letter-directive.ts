@@ -31,7 +31,11 @@ export class SingleLetterDirective {
             if (input.value) {
                 input.value = '';
             } else {
-                this.focusPreviousInput();
+                const prev = this.getPreviousInput();
+                if (prev) {
+                    prev.value = '';
+                    prev.focus();
+                }
             }
             return;
         }
@@ -98,5 +102,18 @@ export class SingleLetterDirective {
         if (index > 0) {
             inputs[index - 1].focus();
         }
+    }
+
+    private getPreviousInput(): HTMLInputElement | null {
+        const input = this.elementRef.nativeElement;
+        const container = input.closest('.letter-container');
+        if (!container) return null;
+
+        const inputs = Array.from(
+            container.querySelectorAll<HTMLInputElement>('input.letter')
+        ).filter((el) => !el.disabled);
+
+        const index = inputs.indexOf(input);
+        return index > 0 ? inputs[index - 1] : null;
     }
 }
