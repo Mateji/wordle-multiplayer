@@ -1,5 +1,6 @@
 import { afterNextRender, AfterViewInit, Component, ElementRef, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { SingleLetterDirective } from '../directives/single-letter-directive';
+import { KeyboardComponent } from "../keyboard/keyboard.component";
 
 type LetterState = 'correct' | 'present' | 'absent' | 'unset';
 
@@ -16,7 +17,7 @@ type Row = {
 
 @Component({
     selector: 'app-overview',
-    imports: [SingleLetterDirective],
+    imports: [SingleLetterDirective, KeyboardComponent],
     templateUrl: './overview.component.html',
     styleUrl: './overview.component.css',
 })

@@ -3,6 +3,20 @@
     flex-direction: column;
     align-items: center;
     margin-top: 20px;
+    width: 100%;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.wordle-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: fit-content;
 }
 
 .letter-container {
@@ -42,21 +56,21 @@
 }
 
 .letter.correct {
-    background: #6aaa64;
-    color: #fff;
-    border-color: #5b8f54;
+    background: var(--key-correct-bg-color);
+    color: var(--key-correct-text-color);
+    border-color: var(--key-correct-border-color);
 }
 
 .letter.present {
-    background: #c9b458;
-    color: #fff;
-    border-color: #a89647;
+    background: var(--key-present-bg-color);
+    color: var(--key-present-text-color);
+    border-color: var(--key-present-border-color);
 }
 
 .letter.absent {
-    background: #787c7e;
-    color: #fff;
-    border-color: #5f6364;
+    background: var(--key-absent-bg-color);
+    color: var(--key-absent-text-color);
+    border-color: var(--key-absent-border-color);
 }
 
 .submit-button {

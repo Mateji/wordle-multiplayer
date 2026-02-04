@@ -1,1 +1,14 @@
 /* You can add global styles to this file, and also import other style files */
+:root {
+    --key-bg-color: #d3d6da;
+    --key-text-color: #000000;
+    --key-absent-bg-color: #787c7e;
+    --key-absent-border-color: #565758;
+    --key-absent-text-color: #ffffff;
+    --key-present-bg-color: #c9b458;
+    --key-present-border-color: #a89647;
+    --key-present-text-color: #ffffff;
+    --key-correct-bg-color: #6aaa64;
+    --key-correct-border-color: #5b8f54;
+    --key-correct-text-color: #ffffff;
+}
