@@ -1,5 +1,5 @@
 <div class="container">
-    <form (submit)="onSubmit($event)">
+    <form (submit)="onSubmit($event)" (keydown.enter)="onSubmit($event)">
         <div class="wordle-container">
             <div class="letter-container" #lettersContainer>
                 @for (row of rows; track $index; let rowIndex = $index) {
@@ -17,8 +17,7 @@
                 </div>
                 }
             </div>
-            <button class="submit-button" type="submit">Submit</button>
         </div>
-        <app-keyboard></app-keyboard>
+        <app-keyboard class="keyboard-container" [keyStates]="keyStates" (keyPressed)="onKeyboardKey($event)"></app-keyboard>
     </form>
 </div>

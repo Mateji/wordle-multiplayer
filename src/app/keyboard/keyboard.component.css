@@ -12,19 +12,12 @@
     justify-content: center;
     gap: clamp(4px, 1vw, 8px);
     margin-bottom: clamp(6px, 1vw, 10px);
-}
-
-.keyboard-row:nth-child(2) {
-    padding: 0 clamp(10px, 3vw, 24px);
-}
-
-.keyboard-row:nth-child(3) {
-    padding: 0 clamp(6px, 2vw, 16px);
+    box-sizing: border-box;
 }
 
 .key {
     flex: 1 1 0;
-    min-width: 0;
+    min-width: 36px;
 
     height: clamp(42px, 7vw, 58px);
     border-radius: 4px;
@@ -49,7 +42,7 @@
 .key.is-wide {
     flex: 1.2 1 0;
     min-width: 64px;
-    font-size: 0.75em;
+    font-size: 0.6em;
 }
 
 .key.absent {

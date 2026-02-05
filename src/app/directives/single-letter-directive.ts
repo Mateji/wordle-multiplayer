@@ -45,7 +45,7 @@ export class SingleLetterDirective {
         if (event.key.length !== 1) return;
 
         // Only handle letters
-        if (!/^[a-z]$/i.test(event.key)) {
+        if (!/^[a-züäöß]$/i.test(event.key)) {
             event.preventDefault();
             return;
         }
@@ -62,7 +62,7 @@ export class SingleLetterDirective {
     @HostListener('input')
     onInput(): void {
         const input = this.elementRef.nativeElement;
-        const cleaned = input.value.replace(/[^a-z]/gi, '');
+        const cleaned = input.value.replace(/[^a-züäöß]/gi, '');
         const nextValue = cleaned.slice(0, 1).toUpperCase();
 
         if (input.value !== nextValue) {

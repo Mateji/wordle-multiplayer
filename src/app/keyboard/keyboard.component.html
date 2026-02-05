@@ -2,7 +2,13 @@
     @for (row of keys; track row) {
     <div class="keyboard-row">
         @for (key of row; track key) {
-        <button class="key" [class.is-wide]="key === 'Enter' || key === 'Backspace'" type="button">{{ key }}</button>
+        <button class="key"
+            [class.is-wide]="key === 'Enter' || key === 'Backspace'"
+            [class.correct]="getState(key) === 'correct'"
+            [class.present]="getState(key) === 'present'"
+            [class.absent]="getState(key) === 'absent'"
+            type="button"
+            (click)="onKeyClick(key)">{{ key }}</button>
         }
     </div>
     }
