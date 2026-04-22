@@ -9,4 +9,6 @@ type Row = {
     cells: Cell[];
     locked: boolean;
     enter?: boolean;
+    error?: boolean;
+    shake?: boolean;
 };

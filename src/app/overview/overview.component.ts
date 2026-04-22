@@ -1,6 +1,7 @@
-import { AfterViewInit, Component, ElementRef, HostListener, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, QueryList, ViewChild, ViewChildren, inject } from '@angular/core';
 import { SingleLetterDirective } from '../directives/single-letter-directive';
 import { KeyboardComponent } from "../keyboard/keyboard.component";
+import { TargetWord } from '../services/target-word';
 
 @Component({
     selector: 'app-overview',
@@ -15,14 +16,37 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     rows: Row[] = [{ locked: false, cells: Array.from({ length: 5 }, () => ({ letter: '', state: 'unset' })) }];
     activeRow = 0;
     gameOver = false;
+    showWinPopup = false;
+    winTries = 0;
+    invalidWordMessage = '';
+    invalidWordVisible = false;
 
     private targetWord = '';
     private submittedText = '';
+    private wordList: string[] = [];
+    private targetWordsByLength = new Map<number, string[]>();
+    private allowedWordsByLength = new Map<number, Set<string>>();
+    private invalidWordTimeout: ReturnType<typeof setTimeout> | null = null;
+    private invalidWordShowTimeout: ReturnType<typeof setTimeout> | null = null;
+    private errorRowIndex: number | null = null;
+    private rowShakeStartTimeout: ReturnType<typeof setTimeout> | null = null;
+    private rowShakeEndTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    private readonly targetWordService = inject(TargetWord);
+    private readonly cdr = inject(ChangeDetectorRef);
 
     private pendingFocusIndex: number | null = null;
 
     ngOnInit(): void {
-        this.targetWord = 'apfel';
+        this.targetWordService.getTargetWords().subscribe((words) => {
+            this.wordList = words;
+            this.indexTargetWords(words);
+            this.pickRandomTargetWord();
+        });
+
+        this.targetWordService.getAllowedWords().subscribe((words) => {
+            this.indexAllowedWords(words);
+        });
     }
 
     ngAfterViewInit(): void {
@@ -48,7 +72,7 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         for (const row of this.rows) {
             for (const cell of row.cells) {
                 if (!cell.letter) continue;
-                const letter = cell.letter.toUpperCase();
+                const letter = this.normalizeKeyLetter(cell.letter);
                 const current = map[letter] ?? 'unset';
                 if (priority[cell.state] > priority[current]) {
                     map[letter] = cell.state;
@@ -60,6 +84,9 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     }
 
     onKeyboardKey(key: string): void {
+        this.clearInvalidWordMessage();
+        this.clearRowError();
+
         const row = this.rows[this.activeRow];
         if (!row || row.locked) return;
 
@@ -95,7 +122,7 @@ export class OverviewComponent implements OnInit, AfterViewInit {
 
         if (emptyIndex === -1) return;
 
-        const nextValue = key.toLocaleUpperCase();
+        const nextValue = this.normalizeInputLetter(key);
         rowInputs[emptyIndex].nativeElement.value = nextValue;
         row.cells[emptyIndex].letter = nextValue;
 
@@ -135,6 +162,7 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     onSubmit(event: Event) {
         event.preventDefault();
         if (this.gameOver) return;
+        if (!this.targetWord) return;
 
         const start = this.activeRow * 5;
         const end = start + 5;
@@ -145,17 +173,22 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         }
 
         this.submittedText = rowInputs.map((input) => input.nativeElement.value).join('');
+        if (!this.isAllowedWord(this.submittedText)) {
+            this.showInvalidWordFeedback(rowInputs);
+            return;
+        }
 
-        this.submittedText = this.submittedText.toUpperCase();
-        this.targetWord = this.targetWord.toUpperCase();
+        const submittedNormalized = this.submittedText.toLocaleLowerCase('de-DE');
+        const targetNormalized = this.targetWord.toLocaleLowerCase('de-DE');
 
         for (let i = 0; i < 5; i++) {
             const cell = this.rows[this.activeRow].cells[i];
             const submittedLetter = this.submittedText[i];
+            const normalizedLetter = submittedNormalized[i];
             cell.letter = submittedLetter;
-            if (submittedLetter === this.targetWord[i]) {
+            if (normalizedLetter === targetNormalized[i]) {
                 cell.state = 'correct';
-            } else if (this.targetWord.includes(submittedLetter)) {
+            } else if (targetNormalized.includes(normalizedLetter)) {
                 cell.state = 'present';
             } else {
                 cell.state = 'absent';
@@ -164,9 +197,10 @@ export class OverviewComponent implements OnInit, AfterViewInit {
 
         this.rows[this.activeRow].locked = true;
 
-        if (this.submittedText === this.targetWord) {
+        if (submittedNormalized === targetNormalized) {
             this.gameOver = true;
-            setTimeout(() => this.resetGame(), 2000);
+            this.winTries = this.activeRow + 1;
+            this.showWinPopup = true;
             return;
         }
 
@@ -183,7 +217,6 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         }, 320);
 
         this.pendingFocusIndex = this.activeRow * 5;
-
         setTimeout(() => {
             if (this.pendingFocusIndex !== null) {
                 this.focusByIndex(this.pendingFocusIndex);
@@ -201,11 +234,165 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         this.activeRow = 0;
         this.submittedText = '';
         this.gameOver = false;
+        this.showWinPopup = false;
+        this.winTries = 0;
+        this.clearInvalidWordMessage();
 
-        this.targetWord = 'APFEL';
+        this.pickRandomTargetWord();
 
         this.pendingFocusIndex = 0;
         setTimeout(() => this.focusByIndex(0), 0);
+    }
+
+    onPlayAgain(): void {
+        this.resetGame();
+    }
+
+    onCloseWinPopup(): void {
+        this.showWinPopup = false;
+    }
+
+    private pickRandomTargetWord(): void {
+        const length = this.getCurrentWordLength();
+        const words = this.targetWordsByLength.get(length) ?? [];
+        if (!words.length) {
+            this.targetWord = '';
+            return;
+        }
+        const index = Math.floor(Math.random() * words.length);
+        this.targetWord = words[index];
+    }
+
+    private getCurrentWordLength(): number {
+        return this.rows[0]?.cells.length ?? 5;
+    }
+
+    private indexTargetWords(words: string[]): void {
+        this.targetWordsByLength.clear();
+        for (const word of words) {
+            const length = word.length;
+            const bucket = this.targetWordsByLength.get(length) ?? [];
+            bucket.push(word);
+            this.targetWordsByLength.set(length, bucket);
+        }
+    }
+
+    private indexAllowedWords(words: string[]): void {
+        this.allowedWordsByLength.clear();
+        for (const word of words) {
+            const length = word.length;
+            const normalized = word.toLocaleLowerCase('de-DE');
+            const bucket = this.allowedWordsByLength.get(length) ?? new Set<string>();
+            bucket.add(normalized);
+            this.allowedWordsByLength.set(length, bucket);
+        }
+    }
+
+    private isAllowedWord(word: string): boolean {
+        const length = word.length;
+        const bucket = this.allowedWordsByLength.get(length);
+        if (!bucket) return false;
+        return bucket.has(word.toLocaleLowerCase('de-DE'));
+    }
+
+    private showInvalidWordFeedback(rowInputs: ElementRef<HTMLInputElement>[]): void {
+        const row = this.rows[this.activeRow];
+        if (!row) return;
+
+        const message = 'Kein gueltiges Wort.';
+        this.clearInvalidWordMessage();
+        this.clearRowError();
+        this.errorRowIndex = this.activeRow;
+        row.error = true;
+        this.triggerRowShake(row);
+        this.invalidWordMessage = message;
+        this.invalidWordVisible = false;
+
+        if (this.invalidWordShowTimeout) {
+            clearTimeout(this.invalidWordShowTimeout);
+        }
+        this.invalidWordShowTimeout = setTimeout(() => {
+            this.invalidWordVisible = true;
+            this.cdr.detectChanges();
+        }, 0);
+
+        setTimeout(() => {
+            this.clearRow(rowInputs, row);
+        }, 420);
+
+        if (this.invalidWordTimeout) {
+            clearTimeout(this.invalidWordTimeout);
+        }
+        this.invalidWordTimeout = setTimeout(() => {
+            this.invalidWordMessage = '';
+            this.invalidWordVisible = false;
+            this.clearRowError();
+            this.invalidWordTimeout = null;
+            this.cdr.detectChanges();
+        }, 2300);
+    }
+
+    private clearRow(rowInputs: ElementRef<HTMLInputElement>[], row: Row): void {
+        rowInputs.forEach((input, index) => {
+            input.nativeElement.value = '';
+            row.cells[index].letter = '';
+            row.cells[index].state = 'unset';
+        });
+        rowInputs[0]?.nativeElement.focus();
+    }
+
+    private clearInvalidWordMessage(): void {
+        if (this.invalidWordTimeout) {
+            clearTimeout(this.invalidWordTimeout);
+            this.invalidWordTimeout = null;
+        }
+        if (this.invalidWordShowTimeout) {
+            clearTimeout(this.invalidWordShowTimeout);
+            this.invalidWordShowTimeout = null;
+        }
+        this.invalidWordMessage = '';
+        this.invalidWordVisible = false;
+        this.clearRowError();
+        this.cdr.detectChanges();
+    }
+
+    private clearRowError(): void {
+        const index = this.errorRowIndex;
+        if (index === null) return;
+        const row = this.rows[index];
+        if (!row) return;
+        row.error = false;
+        row.shake = false;
+        this.errorRowIndex = null;
+    }
+
+    private normalizeInputLetter(letter: string): string {
+        if (letter === 'ß' || letter === 'ẞ') return 'ß';
+        return letter.toLocaleUpperCase('de-DE');
+    }
+
+    private normalizeKeyLetter(letter: string): string {
+        if (letter === 'ß' || letter === 'ẞ') return 'ß';
+        return letter.toLocaleUpperCase('de-DE');
+    }
+
+    private triggerRowShake(row: Row): void {
+        if (this.rowShakeStartTimeout) {
+            clearTimeout(this.rowShakeStartTimeout);
+        }
+        if (this.rowShakeEndTimeout) {
+            clearTimeout(this.rowShakeEndTimeout);
+        }
+
+        row.shake = false;
+        this.rowShakeStartTimeout = setTimeout(() => {
+            row.shake = true;
+            this.cdr.detectChanges();
+        }, 0);
+        this.rowShakeEndTimeout = setTimeout(() => {
+            row.shake = false;
+            this.cdr.detectChanges();
+        }, 340);
     }
 
 }

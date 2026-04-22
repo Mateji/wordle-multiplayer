@@ -1,5 +1,6 @@
 /* You can add global styles to this file, and also import other style files */
 :root {
+    --ui-font: 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
     --key-bg-color: #d3d6da;
     --key-text-color: #000000;
     --key-absent-bg-color: #787c7e;
@@ -11,4 +12,8 @@
     --key-correct-bg-color: #6aaa64;
     --key-correct-border-color: #5b8f54;
     --key-correct-text-color: #ffffff;
+}
+
+body {
+    font-family: var(--ui-font);
 }

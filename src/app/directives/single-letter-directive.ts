@@ -52,7 +52,7 @@ export class SingleLetterDirective {
 
         // Overwrite current value and advance
         event.preventDefault();
-        const nextValue = event.key.toLocaleUpperCase();
+        const nextValue = this.normalizeLetter(event.key);
         if (input.value !== nextValue) {
             input.value = nextValue;
         }
@@ -63,7 +63,7 @@ export class SingleLetterDirective {
     onInput(): void {
         const input = this.elementRef.nativeElement;
         const cleaned = input.value.replace(/[^a-züäöß]/gi, '');
-        const nextValue = cleaned.slice(0, 1).toUpperCase();
+        const nextValue = this.normalizeLetter(cleaned.slice(0, 1));
 
         if (input.value !== nextValue) {
             input.value = nextValue;
@@ -115,5 +115,11 @@ export class SingleLetterDirective {
 
         const index = inputs.indexOf(input);
         return index > 0 ? inputs[index - 1] : null;
+    }
+
+    private normalizeLetter(letter: string): string {
+        if (!letter) return '';
+        if (letter === 'ß' || letter === 'ẞ') return 'ß';
+        return letter.toLocaleUpperCase('de-DE');
     }
 }
