@@ -1,125 +1,125 @@
 import { Directive, ElementRef, HostBinding, HostListener } from '@angular/core';
 
 @Directive({
-    selector: '[appSingleLetter]',
+  selector: '[appSingleLetter]',
 })
 export class SingleLetterDirective {
-    @HostBinding('attr.maxlength') maxlength = 1;
+  @HostBinding('attr.maxlength') maxlength = 1;
 
-    constructor(private readonly elementRef: ElementRef<HTMLInputElement>) { }
+  constructor(private readonly elementRef: ElementRef<HTMLInputElement>) {}
 
-    @HostListener('keydown', ['$event'])
-    onKeydown(event: KeyboardEvent): void {
-        const input = this.elementRef.nativeElement;
+  @HostListener('keydown', ['$event'])
+  onKeydown(event: KeyboardEvent): void {
+    const input = this.elementRef.nativeElement;
 
-        // Navigation
-        if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            this.focusPreviousInput();
-            return;
-        }
-
-        if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            this.focusNextInput();
-            return;
-        }
-
-        // Backspace handling
-        if (event.key === 'Backspace') {
-            event.preventDefault();
-            if (input.value) {
-                input.value = '';
-            } else {
-                const prev = this.getPreviousInput();
-                if (prev) {
-                    prev.value = '';
-                    prev.focus();
-                }
-            }
-            return;
-        }
-
-        // Allow navigation/editing keys
-        if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (event.key.length !== 1) return;
-
-        // Only handle letters
-        if (!/^[a-züäöß]$/i.test(event.key)) {
-            event.preventDefault();
-            return;
-        }
-
-        // Overwrite current value and advance
-        event.preventDefault();
-        const nextValue = this.normalizeLetter(event.key);
-        if (input.value !== nextValue) {
-            input.value = nextValue;
-        }
-        this.focusNextInput();
+    // Navigation
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.focusPreviousInput();
+      return;
     }
 
-    @HostListener('input')
-    onInput(): void {
-        const input = this.elementRef.nativeElement;
-        const cleaned = input.value.replace(/[^a-züäöß]/gi, '');
-        const nextValue = this.normalizeLetter(cleaned.slice(0, 1));
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.focusNextInput();
+      return;
+    }
 
-        if (input.value !== nextValue) {
-            input.value = nextValue;
+    // Backspace handling
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      if (input.value) {
+        input.value = '';
+      } else {
+        const prev = this.getPreviousInput();
+        if (prev) {
+          prev.value = '';
+          prev.focus();
         }
-
-        if (nextValue) {
-            this.focusNextInput();
-        }
+      }
+      return;
     }
 
-    private focusNextInput(): void {
-        const input = this.elementRef.nativeElement;
-        const container = input.closest('.letter-container');
-        if (!container) return;
+    // Allow navigation/editing keys
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key.length !== 1) return;
 
-        const inputs = Array.from(
-            container.querySelectorAll<HTMLInputElement>('input.letter')
-        ).filter((el) => !el.disabled);
-
-        const index = inputs.indexOf(input);
-        if (index >= 0 && index < inputs.length - 1) {
-            inputs[index + 1].focus();
-        }
+    // Only handle letters
+    if (!/^[a-züäöß]$/i.test(event.key)) {
+      event.preventDefault();
+      return;
     }
 
-    private focusPreviousInput(): void {
-        const input = this.elementRef.nativeElement;
-        const container = input.closest('.letter-container');
-        if (!container) return;
+    // Overwrite current value and advance
+    event.preventDefault();
+    const nextValue = this.normalizeLetter(event.key);
+    if (input.value !== nextValue) {
+      input.value = nextValue;
+    }
+    this.focusNextInput();
+  }
 
-        const inputs = Array.from(
-            container.querySelectorAll<HTMLInputElement>('input.letter')
-        ).filter((el) => !el.disabled);
+  @HostListener('input')
+  onInput(): void {
+    const input = this.elementRef.nativeElement;
+    const cleaned = input.value.replace(/[^a-züäöß]/gi, '');
+    const nextValue = this.normalizeLetter(cleaned.slice(0, 1));
 
-        const index = inputs.indexOf(input);
-        if (index > 0) {
-            inputs[index - 1].focus();
-        }
+    if (input.value !== nextValue) {
+      input.value = nextValue;
     }
 
-    private getPreviousInput(): HTMLInputElement | null {
-        const input = this.elementRef.nativeElement;
-        const container = input.closest('.letter-container');
-        if (!container) return null;
-
-        const inputs = Array.from(
-            container.querySelectorAll<HTMLInputElement>('input.letter')
-        ).filter((el) => !el.disabled);
-
-        const index = inputs.indexOf(input);
-        return index > 0 ? inputs[index - 1] : null;
+    if (nextValue) {
+      this.focusNextInput();
     }
+  }
 
-    private normalizeLetter(letter: string): string {
-        if (!letter) return '';
-        if (letter === 'ß' || letter === 'ẞ') return 'ß';
-        return letter.toLocaleUpperCase('de-DE');
+  private focusNextInput(): void {
+    const input = this.elementRef.nativeElement;
+    const container = input.closest('.letter-container');
+    if (!container) return;
+
+    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input.letter')).filter(
+      (el) => !el.disabled,
+    );
+
+    const index = inputs.indexOf(input);
+    if (index >= 0 && index < inputs.length - 1) {
+      inputs[index + 1].focus();
     }
+  }
+
+  private focusPreviousInput(): void {
+    const input = this.elementRef.nativeElement;
+    const container = input.closest('.letter-container');
+    if (!container) return;
+
+    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input.letter')).filter(
+      (el) => !el.disabled,
+    );
+
+    const index = inputs.indexOf(input);
+    if (index > 0) {
+      inputs[index - 1].focus();
+    }
+  }
+
+  private getPreviousInput(): HTMLInputElement | null {
+    const input = this.elementRef.nativeElement;
+    const container = input.closest('.letter-container');
+    if (!container) return null;
+
+    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input.letter')).filter(
+      (el) => !el.disabled,
+    );
+
+    const index = inputs.indexOf(input);
+    return index > 0 ? inputs[index - 1] : null;
+  }
+
+  private normalizeLetter(letter: string): string {
+    if (!letter) return '';
+    if (letter === 'ß' || letter === 'ẞ') return 'ß';
+    return letter.toLocaleUpperCase('de-DE');
+  }
 }

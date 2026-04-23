@@ -3,20 +3,16 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 @Injectable({
-    providedIn: 'root'
+  providedIn: 'root',
 })
 export class TargetWord {
-    private _http = inject(HttpClient);
+  private _http = inject(HttpClient);
 
-    getTargetWords(): Observable<string[]> {
-        return this._http
-            .get<{ data: string[] }>(`assets/target-words.json`)
-            .pipe(map((response) => response.data ?? []));
-    }
+  getTargetWords(): Observable<string[]> {
+    return this._http.get<{ data: string[] }>(`assets/target-words.json`).pipe(map((response) => response.data ?? []));
+  }
 
-    getAllowedWords(): Observable<string[]> {
-        return this._http
-            .get<{ data: string[] }>(`assets/allowed-words.json`)
-            .pipe(map((response) => response.data ?? []));
-    }
+  getAllowedWords(): Observable<string[]> {
+    return this._http.get<{ data: string[] }>(`assets/allowed-words.json`).pipe(map((response) => response.data ?? []));
+  }
 }

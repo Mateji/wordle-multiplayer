@@ -1,0 +1,1102 @@
+
+> wordle-monorepo@ format:check /home/mateji/dev/wordle
+> biome format apps/client apps/server packages/shared
+
+apps/client/angular.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     1  1 │   {
+     2    │ - ····"$schema":·"./node_modules/@angular/cli/lib/config/schema.json",
+     3    │ - ····"version":·1,
+     4    │ - ····"newProjectRoot":·"projects",
+     5    │ - ····"projects":·{
+     6    │ - ········"wordle":·{
+     7    │ - ············"projectType":·"application",
+     8    │ - ············"schematics":·{},
+     9    │ - ············"root":·"",
+    10    │ - ············"sourceRoot":·"src",
+    11    │ - ············"prefix":·"app",
+    12    │ - ············"architect":·{
+    13    │ - ················"build":·{
+    14    │ - ····················"builder":·"@angular/build:application",
+    15    │ - ····················"options":·{
+    16    │ - ························"browser":·"src/main.ts",
+    17    │ - ························"tsConfig":·"tsconfig.app.json",
+    18    │ - ························"assets":·[
+    19    │ - ····························{
+    20    │ - ································"glob":·"**/*",
+    21    │ - ································"input":·"public"
+    22    │ - ····························},
+    23    │ - ····························{
+    24    │ - ································"glob":·"**/*",
+    25    │ - ································"input":·"src/assets",
+    26    │ - ································"output":·"/assets"
+    27    │ - ····························}
+    28    │ - ························],
+    29    │ - ························"styles":·[
+    30    │ - ····························"src/reset.css",
+    31    │ - ····························"src/styles.css"
+    32    │ - ························]
+    33    │ - ····················},
+    34    │ - ····················"configurations":·{
+    35    │ - ························"production":·{
+    36    │ - ····························"budgets":·[
+    37    │ - ································{
+    38    │ - ····································"type":·"initial",
+    39    │ - ····································"maximumWarning":·"500kB",
+    40    │ - ····································"maximumError":·"1MB"
+    41    │ - ································},
+    42    │ - ································{
+    43    │ - ····································"type":·"anyComponentStyle",
+    44    │ - ····································"maximumWarning":·"6kB",
+    45    │ - ····································"maximumError":·"10kB"
+    46    │ - ································}
+    47    │ - ····························],
+    48    │ - ····························"outputHashing":·"all"
+    49    │ - ························},
+    50    │ - ························"development":·{
+    51    │ - ····························"optimization":·false,
+    52    │ - ····························"extractLicenses":·false,
+    53    │ - ····························"sourceMap":·true
+    54    │ - ························}
+    55    │ - ····················},
+    56    │ - ····················"defaultConfiguration":·"production"
+    57    │ - ················},
+    58    │ - ················"serve":·{
+    59    │ - ····················"builder":·"@angular/build:dev-server",
+    60    │ - ····················"configurations":·{
+    61    │ - ························"production":·{
+    62    │ - ····························"buildTarget":·"wordle:build:production"
+    63    │ - ························},
+    64    │ - ························"development":·{
+    65    │ - ····························"buildTarget":·"wordle:build:development"
+    66    │ - ························}
+    67    │ - ····················},
+    68    │ - ····················"defaultConfiguration":·"development"
+    69    │ - ················},
+    70    │ - ················"extract-i18n":·{
+    71    │ - ····················"builder":·"@angular/build:extract-i18n"
+    72    │ - ················},
+    73    │ - ················"test":·{
+    74    │ - ····················"builder":·"@angular/build:karma",
+    75    │ - ····················"options":·{
+    76    │ - ························"tsConfig":·"tsconfig.spec.json",
+    77    │ - ························"assets":·[
+    78    │ - ····························{
+    79    │ - ································"glob":·"**/*",
+    80    │ - ································"input":·"public"
+    81    │ - ····························},
+    82    │ - ····························{
+    83    │ - ································"glob":·"**/*",
+    84    │ - ································"input":·"src/assets",
+    85    │ - ································"output":·"/assets"
+    86    │ - ····························}
+    87    │ - ························],
+    88    │ - ························"styles":·[
+    89    │ - ····························"src/styles.css"
+    90    │ - ························]
+    91    │ - ····················}
+    92    │ - ················}
+    93    │ - ············}
+    94    │ - ········}
+    95    │ - ····}
+    96    │ - }
+        2 │ + ··"$schema":·"./node_modules/@angular/cli/lib/config/schema.json",
+        3 │ + ··"version":·1,
+        4 │ + ··"newProjectRoot":·"projects",
+        5 │ + ··"projects":·{
+        6 │ + ····"wordle":·{
+        7 │ + ······"projectType":·"application",
+        8 │ + ······"schematics":·{},
+        9 │ + ······"root":·"",
+       10 │ + ······"sourceRoot":·"src",
+       11 │ + ······"prefix":·"app",
+       12 │ + ······"architect":·{
+       13 │ + ········"build":·{
+       14 │ + ··········"builder":·"@angular/build:application",
+       15 │ + ··········"options":·{
+       16 │ + ············"browser":·"src/main.ts",
+       17 │ + ············"tsConfig":·"tsconfig.app.json",
+       18 │ + ············"assets":·[
+       19 │ + ··············{
+       20 │ + ················"glob":·"**/*",
+       21 │ + ················"input":·"public"
+       22 │ + ··············},
+       23 │ + ··············{
+       24 │ + ················"glob":·"**/*",
+       25 │ + ················"input":·"src/assets",
+       26 │ + ················"output":·"/assets"
+       27 │ + ··············}
+       28 │ + ············],
+       29 │ + ············"styles":·["src/reset.css",·"src/styles.css"]
+       30 │ + ··········},
+       31 │ + ··········"configurations":·{
+       32 │ + ············"production":·{
+       33 │ + ··············"budgets":·[
+       34 │ + ················{
+       35 │ + ··················"type":·"initial",
+       36 │ + ··················"maximumWarning":·"500kB",
+       37 │ + ··················"maximumError":·"1MB"
+       38 │ + ················},
+       39 │ + ················{
+       40 │ + ··················"type":·"anyComponentStyle",
+       41 │ + ··················"maximumWarning":·"6kB",
+       42 │ + ··················"maximumError":·"10kB"
+       43 │ + ················}
+       44 │ + ··············],
+       45 │ + ··············"outputHashing":·"all"
+       46 │ + ············},
+       47 │ + ············"development":·{
+       48 │ + ··············"optimization":·false,
+       49 │ + ··············"extractLicenses":·false,
+       50 │ + ··············"sourceMap":·true
+       51 │ + ············}
+       52 │ + ··········},
+       53 │ + ··········"defaultConfiguration":·"production"
+       54 │ + ········},
+       55 │ + ········"serve":·{
+  37 more lines truncated
+  
+
+apps/client/src/app/app.config.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    13 │ ··],
+       │    +
+
+apps/client/src/app/app.routes.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    2 2 │   
+    3 3 │   export const routes: Routes = [
+    4   │ - ····{
+    5   │ - ········path:·'',
+    6   │ - ········loadComponent:·()·=>·import('./overview/overview.component').then(m·=>·m.OverviewComponent)
+    7   │ - ····}
+      4 │ + ··{
+      5 │ + ····path:·'',
+      6 │ + ····loadComponent:·()·=>·import('./overview/overview.component').then((m)·=>·m.OverviewComponent),
+      7 │ + ··},
+    8 8 │   ];
+    9 9 │   
+  
+
+apps/client/src/app/app.spec.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    9 │ ······providers:·[provideZonelessChangeDetection()],
+      │                                                    +
+
+apps/client/src/app/app.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    8 │ ··styleUrl:·'./app.css',
+      │                        +
+
+apps/client/src/app/directives/single-letter-directive.ts format ━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+      2   2 │   
+      3   3 │   @Directive({
+      4     │ - ····selector:·'[appSingleLetter]',
+          4 │ + ··selector:·'[appSingleLetter]',
+      5   5 │   })
+      6   6 │   export class SingleLetterDirective {
+      7     │ - ····@HostBinding('attr.maxlength')·maxlength·=·1;
+          7 │ + ··@HostBinding('attr.maxlength')·maxlength·=·1;
+      8   8 │   
+      9     │ - ····constructor(private·readonly·elementRef:·ElementRef<HTMLInputElement>)·{·}
+          9 │ + ··constructor(private·readonly·elementRef:·ElementRef<HTMLInputElement>)·{}
+     10  10 │   
+     11     │ - ····@HostListener('keydown',·['$event'])
+     12     │ - ····onKeydown(event:·KeyboardEvent):·void·{
+     13     │ - ········const·input·=·this.elementRef.nativeElement;
+         11 │ + ··@HostListener('keydown',·['$event'])
+         12 │ + ··onKeydown(event:·KeyboardEvent):·void·{
+         13 │ + ····const·input·=·this.elementRef.nativeElement;
+     14  14 │   
+     15     │ - ········//·Navigation
+     16     │ - ········if·(event.key·===·'ArrowLeft')·{
+     17     │ - ············event.preventDefault();
+     18     │ - ············this.focusPreviousInput();
+     19     │ - ············return;
+     20     │ - ········}
+         15 │ + ····//·Navigation
+         16 │ + ····if·(event.key·===·'ArrowLeft')·{
+         17 │ + ······event.preventDefault();
+         18 │ + ······this.focusPreviousInput();
+         19 │ + ······return;
+         20 │ + ····}
+     21  21 │   
+     22     │ - ········if·(event.key·===·'ArrowRight')·{
+     23     │ - ············event.preventDefault();
+     24     │ - ············this.focusNextInput();
+     25     │ - ············return;
+     26     │ - ········}
+         22 │ + ····if·(event.key·===·'ArrowRight')·{
+         23 │ + ······event.preventDefault();
+         24 │ + ······this.focusNextInput();
+         25 │ + ······return;
+         26 │ + ····}
+     27  27 │   
+     28     │ - ········//·Backspace·handling
+     29     │ - ········if·(event.key·===·'Backspace')·{
+     30     │ - ············event.preventDefault();
+     31     │ - ············if·(input.value)·{
+     32     │ - ················input.value·=·'';
+     33     │ - ············}·else·{
+     34     │ - ················const·prev·=·this.getPreviousInput();
+     35     │ - ················if·(prev)·{
+     36     │ - ····················prev.value·=·'';
+     37     │ - ····················prev.focus();
+     38     │ - ················}
+     39     │ - ············}
+     40     │ - ············return;
+     41     │ - ········}
+         28 │ + ····//·Backspace·handling
+         29 │ + ····if·(event.key·===·'Backspace')·{
+         30 │ + ······event.preventDefault();
+         31 │ + ······if·(input.value)·{
+         32 │ + ········input.value·=·'';
+         33 │ + ······}·else·{
+         34 │ + ········const·prev·=·this.getPreviousInput();
+         35 │ + ········if·(prev)·{
+         36 │ + ··········prev.value·=·'';
+         37 │ + ··········prev.focus();
+         38 │ + ········}
+         39 │ + ······}
+         40 │ + ······return;
+         41 │ + ····}
+     42  42 │   
+     43     │ - ········//·Allow·navigation/editing·keys
+     44     │ - ········if·(event.ctrlKey·||·event.metaKey·||·event.altKey)·return;
+     45     │ - ········if·(event.key.length·!==·1)·return;
+         43 │ + ····//·Allow·navigation/editing·keys
+         44 │ + ····if·(event.ctrlKey·||·event.metaKey·||·event.altKey)·return;
+         45 │ + ····if·(event.key.length·!==·1)·return;
+     46  46 │   
+     47     │ - ········//·Only·handle·letters
+     48     │ - ········if·(!/^[a-züäöß]$/i.test(event.key))·{
+     49     │ - ············event.preventDefault();
+     50     │ - ············return;
+     51     │ - ········}
+         47 │ + ····//·Only·handle·letters
+         48 │ + ····if·(!/^[a-züäöß]$/i.test(event.key))·{
+         49 │ + ······event.preventDefault();
+         50 │ + ······return;
+         51 │ + ····}
+     52  52 │   
+     53     │ - ········//·Overwrite·current·value·and·advance
+     54     │ - ········event.preventDefault();
+     55     │ - ········const·nextValue·=·this.normalizeLetter(event.key);
+     56     │ - ········if·(input.value·!==·nextValue)·{
+     57     │ - ············input.value·=·nextValue;
+     58     │ - ········}
+     59     │ - ········this.focusNextInput();
+     60     │ - ····}
+         53 │ + ····//·Overwrite·current·value·and·advance
+         54 │ + ····event.preventDefault();
+         55 │ + ····const·nextValue·=·this.normalizeLetter(event.key);
+         56 │ + ····if·(input.value·!==·nextValue)·{
+         57 │ + ······input.value·=·nextValue;
+         58 │ + ····}
+         59 │ + ····this.focusNextInput();
+         60 │ + ··}
+     61  61 │   
+     62     │ - ····@HostListener('input')
+     63     │ - ····onInput():·void·{
+     64     │ - ········const·input·=·this.elementRef.nativeElement;
+     65     │ - ········const·cleaned·=·input.value.replace(/[^a-züäöß]/gi,·'');
+     66     │ - ········const·nextValue·=·this.normalizeLetter(cleaned.slice(0,·1));
+         62 │ + ··@HostListener('input')
+         63 │ + ··onInput():·void·{
+         64 │ + ····const·input·=·this.elementRef.nativeElement;
+         65 │ + ····const·cleaned·=·input.value.replace(/[^a-züäöß]/gi,·'');
+         66 │ + ····const·nextValue·=·this.normalizeLetter(cleaned.slice(0,·1));
+     67  67 │   
+     68     │ - ········if·(input.value·!==·nextValue)·{
+     69     │ - ············input.value·=·nextValue;
+     70     │ - ········}
+         68 │ + ····if·(input.value·!==·nextValue)·{
+         69 │ + ······input.value·=·nextValue;
+         70 │ + ····}
+     71  71 │   
+     72     │ - ········if·(nextValue)·{
+     73     │ - ············this.focusNextInput();
+     74     │ - ········}
+     75     │ - ····}
+         72 │ + ····if·(nextValue)·{
+         73 │ + ······this.focusNextInput();
+         74 │ + ····}
+         75 │ + ··}
+     76  76 │   
+     77     │ - ····private·focusNextInput():·void·{
+     78     │ - ········const·input·=·this.elementRef.nativeElement;
+     79     │ - ········const·container·=·input.closest('.letter-container');
+     80     │ - ········if·(!container)·return;
+         77 │ + ··private·focusNextInput():·void·{
+         78 │ + ····const·input·=·this.elementRef.nativeElement;
+         79 │ + ····const·container·=·input.closest('.letter-container');
+         80 │ + ····if·(!container)·return;
+     81  81 │   
+     82     │ - ········const·inputs·=·Array.from(
+     83     │ - ············container.querySelectorAll<HTMLInputElement>('input.letter')
+     84     │ - ········).filter((el)·=>·!el.disabled);
+         82 │ + ····const·inputs·=·Array.from(container.querySelectorAll<HTMLInputElement>('input.letter')).filter(
+         83 │ + ······(el)·=>·!el.disabled,
+         84 │ + ····);
+     85  85 │   
+  74 more lines truncated
+  
+
+apps/client/src/app/keyboard/keyboard.component.css format ━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     1  1 │   .keyboard-container {
+     2    │ - ····width:·100%;
+     3    │ - ····max-width:·520px;
+     4    │ - ····margin:·1em·auto·0;
+     5    │ - ····display:·flex;
+     6    │ - ····flex-direction:·column;
+        2 │ + ··width:·100%;
+        3 │ + ··max-width:·520px;
+        4 │ + ··margin:·1em·auto·0;
+        5 │ + ··display:·flex;
+        6 │ + ··flex-direction:·column;
+     7  7 │   }
+     8  8 │   
+     9  9 │   .keyboard-row {
+    10    │ - ····display:·flex;
+    11    │ - ····width:·100%;
+    12    │ - ····justify-content:·center;
+    13    │ - ····gap:·clamp(4px,·1vw,·8px);
+    14    │ - ····margin-bottom:·clamp(6px,·1vw,·10px);
+    15    │ - ····box-sizing:·border-box;
+       10 │ + ··display:·flex;
+       11 │ + ··width:·100%;
+       12 │ + ··justify-content:·center;
+       13 │ + ··gap:·clamp(4px,·1vw,·8px);
+       14 │ + ··margin-bottom:·clamp(6px,·1vw,·10px);
+       15 │ + ··box-sizing:·border-box;
+    16 16 │   }
+    17 17 │   
+    18 18 │   .key {
+    19    │ - ····flex:·1·1·0;
+    20    │ - ····min-width:·clamp(28px,·7.5vw,·40px);
+       19 │ + ··flex:·1·1·0;
+       20 │ + ··min-width:·clamp(28px,·7.5vw,·40px);
+    21 21 │   
+    22    │ - ····height:·clamp(42px,·7.5vw,·58px);
+    23    │ - ····border-radius:·4px;
+       22 │ + ··height:·clamp(42px,·7.5vw,·58px);
+       23 │ + ··border-radius:·4px;
+    24 24 │   
+    25    │ - ····color:·var(--key-text-color);
+    26    │ - ····background-color:·var(--key-bg-color);
+       25 │ + ··color:·var(--key-text-color);
+       26 │ + ··background-color:·var(--key-bg-color);
+    27 27 │   
+    28    │ - ····font-size:·clamp(12px,·2.2vw,·18px);
+    29    │ - ····font-weight:·700;
+    30    │ - ····text-transform:·uppercase;
+       28 │ + ··font-size:·clamp(12px,·2.2vw,·18px);
+       29 │ + ··font-weight:·700;
+       30 │ + ··text-transform:·uppercase;
+    31 31 │   
+    32    │ - ····border:·0;
+    33    │ - ····padding:·0;
+       32 │ + ··border:·0;
+       33 │ + ··padding:·0;
+    34 34 │   
+    35    │ - ····display:·flex;
+    36    │ - ····align-items:·center;
+    37    │ - ····justify-content:·center;
+       35 │ + ··display:·flex;
+       36 │ + ··align-items:·center;
+       37 │ + ··justify-content:·center;
+    38 38 │   
+    39    │ - ····cursor:·pointer;
+       39 │ + ··cursor:·pointer;
+    40 40 │   }
+    41 41 │   
+    42 42 │   .key.is-wide {
+    43    │ - ····flex:·1.2·1·0;
+    44    │ - ····min-width:·clamp(50px,·12vw,·72px);
+    45    │ - ····font-size:·0.6em;
+       43 │ + ··flex:·1.2·1·0;
+       44 │ + ··min-width:·clamp(50px,·12vw,·72px);
+       45 │ + ··font-size:·0.6em;
+    46 46 │   }
+    47 47 │   
+    48 48 │   .key.absent {
+    49    │ - ····background-color:·var(--key-absent-bg-color);
+    50    │ - ····color:·var(--key-absent-text-color);
+       49 │ + ··background-color:·var(--key-absent-bg-color);
+       50 │ + ··color:·var(--key-absent-text-color);
+    51 51 │   }
+    52 52 │   
+    53 53 │   .key.correct {
+    54    │ - ····background-color:·var(--key-correct-bg-color);
+    55    │ - ····color:·var(--key-correct-text-color);
+       54 │ + ··background-color:·var(--key-correct-bg-color);
+       55 │ + ··color:·var(--key-correct-text-color);
+    56 56 │   }
+    57 57 │   
+    58 58 │   .key.present {
+    59    │ - ····background-color:·var(--key-present-bg-color);
+    60    │ - ····color:·var(--key-present-text-color);
+    61    │ - }
+       59 │ + ··background-color:·var(--key-present-bg-color);
+       60 │ + ··color:·var(--key-present-text-color);
+       61 │ + }
+       62 │ + 
+  
+
+apps/client/src/app/keyboard/keyboard.component.spec.ts format ━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     9  9 │     beforeEach(async () => {
+    10 10 │       await TestBed.configureTestingModule({
+    11    │ - ······imports:·[KeyboardComponent]
+    12    │ - ····})
+    13    │ - ····.compileComponents();
+       11 │ + ······imports:·[KeyboardComponent],
+       12 │ + ····}).compileComponents();
+    14 13 │   
+    15 14 │       fixture = TestBed.createComponent(KeyboardComponent);
+  
+
+apps/client/src/app/keyboard/keyboard.component.ts format ━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     2  2 │   
+     3  3 │   @Component({
+     4    │ - ····selector:·'app-keyboard',
+     5    │ - ····imports:·[],
+     6    │ - ····templateUrl:·'./keyboard.component.html',
+     7    │ - ····styleUrl:·'./keyboard.component.css',
+        4 │ + ··selector:·'app-keyboard',
+        5 │ + ··imports:·[],
+        6 │ + ··templateUrl:·'./keyboard.component.html',
+        7 │ + ··styleUrl:·'./keyboard.component.css',
+     8  8 │   })
+     9  9 │   export class KeyboardComponent {
+    10    │ - ····readonly·keyStates·=·input<Record<string,·LetterState>>({});
+    11    │ - ····readonly·keyPressed·=·output<string>();
+       10 │ + ··readonly·keyStates·=·input<Record<string,·LetterState>>({});
+       11 │ + ··readonly·keyPressed·=·output<string>();
+    12 12 │   
+    13    │ - ····keys·=·[
+    14    │ - ········['Q',·'W',·'E',·'R',·'T',·'Z',·'U',·'I',·'O',·'P',·'Ü',·'ß'],
+    15    │ - ········['A',·'S',·'D',·'F',·'G',·'H',·'J',·'K',·'L',·'Ö',·'Ä',],
+    16    │ - ········['Enter',·'Y',·'X',·'C',·'V',·'B',·'N',·'M',·'Backspace'],
+    17    │ - ····];
+       13 │ + ··keys·=·[
+       14 │ + ····['Q',·'W',·'E',·'R',·'T',·'Z',·'U',·'I',·'O',·'P',·'Ü',·'ß'],
+       15 │ + ····['A',·'S',·'D',·'F',·'G',·'H',·'J',·'K',·'L',·'Ö',·'Ä'],
+       16 │ + ····['Enter',·'Y',·'X',·'C',·'V',·'B',·'N',·'M',·'Backspace'],
+       17 │ + ··];
+    18 18 │   
+    19    │ - ····getState(key:·string):·LetterState·|·null·{
+    20    │ - ········if·(key·===·'Enter'·||·key·===·'Backspace')·{
+    21    │ - ············return·null;
+    22    │ - ········}
+    23    │ - ········return·this.keyStates()[key]·??·'unset';
+    24    │ - ····}
+       19 │ + ··getState(key:·string):·LetterState·|·null·{
+       20 │ + ····if·(key·===·'Enter'·||·key·===·'Backspace')·{
+       21 │ + ······return·null;
+       22 │ + ····}
+       23 │ + ····return·this.keyStates()[key]·??·'unset';
+       24 │ + ··}
+    25 25 │   
+    26    │ - ····onKeyClick(key:·string):·void·{
+    27    │ - ········this.keyPressed.emit(key);
+    28    │ - ····}
+       26 │ + ··onKeyClick(key:·string):·void·{
+       27 │ + ····this.keyPressed.emit(key);
+       28 │ + ··}
+    29 29 │   }
+    30 30 │   
+  
+
+apps/client/src/app/models.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     2  2 │   
+     3  3 │   type Cell = {
+     4    │ - ····letter:·string;
+     5    │ - ····state:·LetterState;
+        4 │ + ··letter:·string;
+        5 │ + ··state:·LetterState;
+     6  6 │   };
+     7  7 │   
+     8  8 │   type Row = {
+     9    │ - ····cells:·Cell[];
+    10    │ - ····locked:·boolean;
+    11    │ - ····enter?:·boolean;
+    12    │ - ····error?:·boolean;
+    13    │ - ····shake?:·boolean;
+        9 │ + ··cells:·Cell[];
+       10 │ + ··locked:·boolean;
+       11 │ + ··enter?:·boolean;
+       12 │ + ··error?:·boolean;
+       13 │ + ··shake?:·boolean;
+    14 14 │   };
+    15 15 │   
+  
+
+apps/client/src/app/overview/overview.component.css format ━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+      1   1 │   .container {
+      2     │ - ····min-height:·100vh;
+      3     │ - ····height:·100vh;
+      4     │ - ····width:·100%;
+      5     │ - ····display:·flex;
+      6     │ - ····justify-content:·flex-start;
+      7     │ - ····align-items:·center;
+      8     │ - ····margin-top:·0;
+      9     │ - ····flex-direction:·column;
+     10     │ - ····overflow:·hidden;
+          2 │ + ··min-height:·100vh;
+          3 │ + ··height:·100vh;
+          4 │ + ··width:·100%;
+          5 │ + ··display:·flex;
+          6 │ + ··justify-content:·flex-start;
+          7 │ + ··align-items:·center;
+          8 │ + ··margin-top:·0;
+          9 │ + ··flex-direction:·column;
+         10 │ + ··overflow:·hidden;
+     11  11 │   }
+     12  12 │   
+     13  13 │   .topbar {
+     14     │ - ····--topbar-height:·48px;
+     15     │ - ····width:·100%;
+     16     │ - ····display:·flex;
+     17     │ - ····align-items:·center;
+     18     │ - ····justify-content:·flex-end;
+     19     │ - ····height:·var(--topbar-height);
+     20     │ - ····padding:·0·18px;
+     21     │ - ····background:·#f5f6f8;
+     22     │ - ····border-bottom:·1px·solid·#e1e4ea;
+     23     │ - ····font-family:·var(--ui-font);
+     24     │ - ····box-sizing:·border-box;
+     25     │ - ····position:·fixed;
+     26     │ - ····top:·0;
+     27     │ - ····z-index:·5;
+     28     │ - ····align-self:·stretch;
+         14 │ + ··--topbar-height:·48px;
+         15 │ + ··width:·100%;
+         16 │ + ··display:·flex;
+         17 │ + ··align-items:·center;
+         18 │ + ··justify-content:·flex-end;
+         19 │ + ··height:·var(--topbar-height);
+         20 │ + ··padding:·0·18px;
+         21 │ + ··background:·#f5f6f8;
+         22 │ + ··border-bottom:·1px·solid·#e1e4ea;
+         23 │ + ··font-family:·var(--ui-font);
+         24 │ + ··box-sizing:·border-box;
+         25 │ + ··position:·fixed;
+         26 │ + ··top:·0;
+         27 │ + ··z-index:·5;
+         28 │ + ··align-self:·stretch;
+     29  29 │   }
+     30  30 │   
+     31  31 │   .new-game {
+     32     │ - ····border:·1px·solid·#cfd6df;
+     33     │ - ····background:·#ffffff;
+     34     │ - ····color:·#1e2329;
+     35     │ - ····padding:·6px·12px;
+     36     │ - ····border-radius:·8px;
+     37     │ - ····font-size:·13px;
+     38     │ - ····font-weight:·600;
+     39     │ - ····cursor:·pointer;
+         32 │ + ··border:·1px·solid·#cfd6df;
+         33 │ + ··background:·#ffffff;
+         34 │ + ··color:·#1e2329;
+         35 │ + ··padding:·6px·12px;
+         36 │ + ··border-radius:·8px;
+         37 │ + ··font-size:·13px;
+         38 │ + ··font-weight:·600;
+         39 │ + ··cursor:·pointer;
+     40  40 │   }
+     41  41 │   
+     42  42 │   .new-game:hover {
+     43     │ - ····border-color:·#9aa7b4;
+         43 │ + ··border-color:·#9aa7b4;
+     44  44 │   }
+     45  45 │   
+     46  46 │   form {
+     47     │ - ····height:·calc(100vh·-·48px);
+     48     │ - ····min-height:·0;
+     49     │ - ····width:·100%;
+     50     │ - ····max-width:·520px;
+     51     │ - ····margin:·48px·auto·0;
+     52     │ - ····display:·flex;
+     53     │ - ····flex-direction:·column;
+     54     │ - ····justify-content:·flex-start;
+     55     │ - ····align-items:·center;
+     56     │ - ····align-items:·stretch;
+     57     │ - ····box-sizing:·border-box;
+         47 │ + ··height:·calc(100vh·-·48px);
+         48 │ + ··min-height:·0;
+         49 │ + ··width:·100%;
+         50 │ + ··max-width:·520px;
+         51 │ + ··margin:·48px·auto·0;
+         52 │ + ··display:·flex;
+         53 │ + ··flex-direction:·column;
+         54 │ + ··justify-content:·flex-start;
+         55 │ + ··align-items:·center;
+         56 │ + ··align-items:·stretch;
+         57 │ + ··box-sizing:·border-box;
+     58  58 │   }
+     59  59 │   
+     60  60 │   .wordle-container {
+     61     │ - ····width:·100%;
+     62     │ - ····max-width:·100%;
+     63     │ - ····min-height:·0;
+     64     │ - ····overflow:·auto;
+     65     │ - ····display:·flex;
+     66     │ - ····flex-direction:·column;
+     67     │ - ····justify-content:·flex-end;
+     68     │ - ····padding-top:·12px;
+     69     │ - ····padding-bottom:·12px;
+     70     │ - ····box-sizing:·border-box;
+         61 │ + ··width:·100%;
+         62 │ + ··max-width:·100%;
+         63 │ + ··min-height:·0;
+         64 │ + ··overflow:·auto;
+         65 │ + ··display:·flex;
+         66 │ + ··flex-direction:·column;
+         67 │ + ··justify-content:·flex-end;
+         68 │ + ··padding-top:·12px;
+         69 │ + ··padding-bottom:·12px;
+         70 │ + ··box-sizing:·border-box;
+     71  71 │   }
+     72  72 │   
+     73  73 │   .status-row {
+     74     │ - ····height:·40px;
+     75     │ - ····display:·flex;
+     76     │ - ····align-items:·center;
+     77     │ - ····justify-content:·center;
+         74 │ + ··height:·40px;
+         75 │ + ··display:·flex;
+         76 │ + ··align-items:·center;
+         77 │ + ··justify-content:·center;
+     78  78 │   }
+     79  79 │   
+    ······· │ 
+     83  83 │   .wordle-container .simplebar-offset,
+     84  84 │   .wordle-container .simplebar-content-wrapper {
+     85     │ - ····width:·100%;
+     86     │ - ····max-width:·100%;
+     87     │ - ····box-sizing:·border-box;
+         85 │ + ··width:·100%;
+         86 │ + ··max-width:·100%;
+         87 │ + ··box-sizing:·border-box;
+     88  88 │   }
+     89  89 │   
+     90  90 │   .wordle-container .simplebar-content-wrapper {
+     91     │ - ····overflow-x:·hidden;
+         91 │ + ··overflow-x:·hidden;
+  440 more lines truncated
+  
+
+apps/client/src/app/overview/overview.component.spec.ts format ━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     9  9 │     beforeEach(async () => {
+    10 10 │       await TestBed.configureTestingModule({
+    11    │ - ······imports:·[OverviewComponent]
+    12    │ - ····})
+    13    │ - ····.compileComponents();
+       11 │ + ······imports:·[OverviewComponent],
+       12 │ + ····}).compileComponents();
+    14 13 │   
+    15 14 │       fixture = TestBed.createComponent(OverviewComponent);
+  
+
+apps/client/src/app/overview/overview.component.ts format ━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+      1     │ - import·{·AfterViewInit,·ChangeDetectorRef,·Component,·ElementRef,·HostListener,·OnInit,·QueryList,·ViewChild,·ViewChildren,·inject·}·from·'@angular/core';
+          1 │ + import·{
+          2 │ + ··AfterViewInit,
+          3 │ + ··ChangeDetectorRef,
+          4 │ + ··Component,
+          5 │ + ··ElementRef,
+          6 │ + ··HostListener,
+          7 │ + ··OnInit,
+          8 │ + ··QueryList,
+          9 │ + ··ViewChild,
+         10 │ + ··ViewChildren,
+         11 │ + ··inject,
+         12 │ + }·from·'@angular/core';
+      2  13 │   import { SingleLetterDirective } from '../directives/single-letter-directive';
+      3     │ - import·{·KeyboardComponent·}·from·"../keyboard/keyboard.component";
+         14 │ + import·{·KeyboardComponent·}·from·'../keyboard/keyboard.component';
+      4  15 │   import { TargetWord } from '../services/target-word';
+      5  16 │   import SimpleBar from 'simplebar';
+      6  17 │   
+      7  18 │   @Component({
+      8     │ - ····selector:·'app-overview',
+      9     │ - ····imports:·[SingleLetterDirective,·KeyboardComponent],
+     10     │ - ····templateUrl:·'./overview.component.html',
+     11     │ - ····styleUrl:·'./overview.component.css',
+         19 │ + ··selector:·'app-overview',
+         20 │ + ··imports:·[SingleLetterDirective,·KeyboardComponent],
+         21 │ + ··templateUrl:·'./overview.component.html',
+         22 │ + ··styleUrl:·'./overview.component.css',
+     12  23 │   })
+     13  24 │   export class OverviewComponent implements OnInit, AfterViewInit {
+     14     │ - ····@ViewChild('gameForm')·gameForm?:·ElementRef<HTMLElement>;
+     15     │ - ····@ViewChild('lettersContainer')·lettersContainer?:·ElementRef<HTMLElement>;
+     16     │ - ····@ViewChild('letterRows')·letterRows?:·ElementRef<HTMLElement>;
+     17     │ - ····@ViewChild('keyboardHost',·{·read:·ElementRef·})·keyboardHost?:·ElementRef<HTMLElement>;
+     18     │ - ····@ViewChildren('letterInput')·letterInputs!:·QueryList<ElementRef<HTMLInputElement>>;
+         25 │ + ··@ViewChild('gameForm')·gameForm?:·ElementRef<HTMLElement>;
+         26 │ + ··@ViewChild('lettersContainer')·lettersContainer?:·ElementRef<HTMLElement>;
+         27 │ + ··@ViewChild('letterRows')·letterRows?:·ElementRef<HTMLElement>;
+         28 │ + ··@ViewChild('keyboardHost',·{·read:·ElementRef·})·keyboardHost?:·ElementRef<HTMLElement>;
+         29 │ + ··@ViewChildren('letterInput')·letterInputs!:·QueryList<ElementRef<HTMLInputElement>>;
+     19  30 │   
+     20     │ - ····rows:·Row[]·=·[{·locked:·false,·cells:·Array.from({·length:·5·},·()·=>·({·letter:·'',·state:·'unset'·}))·}];
+     21     │ - ····activeRow·=·0;
+     22     │ - ····gameOver·=·false;
+     23     │ - ····showWinPopup·=·false;
+     24     │ - ····winTries·=·0;
+     25     │ - ····invalidWordMessage·=·'';
+     26     │ - ····invalidWordVisible·=·false;
+     27     │ - ····topOffset·=·0;
+     28     │ - ····wordleMaxHeight·=·9999;
+         31 │ + ··rows:·Row[]·=·[{·locked:·false,·cells:·Array.from({·length:·5·},·()·=>·({·letter:·'',·state:·'unset'·}))·}];
+         32 │ + ··activeRow·=·0;
+         33 │ + ··gameOver·=·false;
+         34 │ + ··showWinPopup·=·false;
+         35 │ + ··winTries·=·0;
+         36 │ + ··invalidWordMessage·=·'';
+         37 │ + ··invalidWordVisible·=·false;
+         38 │ + ··topOffset·=·0;
+         39 │ + ··wordleMaxHeight·=·9999;
+     29  40 │   
+     30     │ - ····private·targetWord·=·'';
+     31     │ - ····private·submittedText·=·'';
+     32     │ - ····private·wordList:·string[]·=·[];
+     33     │ - ····private·targetWordsByLength·=·new·Map<number,·string[]>();
+     34     │ - ····private·allowedWordsByLength·=·new·Map<number,·Set<string>>();
+     35     │ - ····private·invalidWordTimeout:·ReturnType<typeof·setTimeout>·|·null·=·null;
+     36     │ - ····private·invalidWordShowTimeout:·ReturnType<typeof·setTimeout>·|·null·=·null;
+     37     │ - ····private·errorRowIndex:·number·|·null·=·null;
+     38     │ - ····private·rowShakeStartTimeout:·ReturnType<typeof·setTimeout>·|·null·=·null;
+     39     │ - ····private·rowShakeEndTimeout:·ReturnType<typeof·setTimeout>·|·null·=·null;
+         41 │ + ··private·targetWord·=·'';
+         42 │ + ··private·submittedText·=·'';
+         43 │ + ··private·wordList:·string[]·=·[];
+         44 │ + ··private·targetWordsByLength·=·new·Map<number,·string[]>();
+         45 │ + ··private·allowedWordsByLength·=·new·Map<number,·Set<string>>();
+         46 │ + ··private·invalidWordTimeout:·ReturnType<typeof·setTimeout>·|·null·=·null;
+         47 │ + ··private·invalidWordShowTimeout:·ReturnType<typeof·setTimeout>·|·null·=·null;
+         48 │ + ··private·errorRowIndex:·number·|·null·=·null;
+         49 │ + ··private·rowShakeStartTimeout:·ReturnType<typeof·setTimeout>·|·null·=·null;
+         50 │ + ··private·rowShakeEndTimeout:·ReturnType<typeof·setTimeout>·|·null·=·null;
+     40  51 │   
+     41     │ - ····private·readonly·targetWordService·=·inject(TargetWord);
+     42     │ - ····private·readonly·cdr·=·inject(ChangeDetectorRef);
+         52 │ + ··private·readonly·targetWordService·=·inject(TargetWord);
+         53 │ + ··private·readonly·cdr·=·inject(ChangeDetectorRef);
+     43  54 │   
+     44     │ - ····private·simpleBar?:·SimpleBar;
+         55 │ + ··private·simpleBar?:·SimpleBar;
+     45  56 │   
+     46     │ - ····private·pendingFocusIndex:·number·|·null·=·null;
+     47     │ - ····private·baseWordleHeight·=·0;
+     48     │ - ····private·readonly·rowToKeyboardGap·=·12;
+     49     │ - ····private·layoutRaf:·number·|·null·=·null;
+         57 │ + ··private·pendingFocusIndex:·number·|·null·=·null;
+         58 │ + ··private·baseWordleHeight·=·0;
+         59 │ + ··private·readonly·rowToKeyboardGap·=·12;
+         60 │ + ··private·layoutRaf:·number·|·null·=·null;
+     50  61 │   
+     51     │ - ····ngOnInit():·void·{
+     52     │ - ········this.targetWordService.getTargetWords().subscribe((words)·=>·{
+     53     │ - ············this.wordList·=·words;
+     54     │ - ············this.indexTargetWords(words);
+     55     │ - ············this.pickRandomTargetWord();
+     56     │ - ········});
+         62 │ + ··ngOnInit():·void·{
+         63 │ + ····this.targetWordService.getTargetWords().subscribe((words)·=>·{
+         64 │ + ······this.wordList·=·words;
+         65 │ + ······this.indexTargetWords(words);
+         66 │ + ······this.pickRandomTargetWord();
+         67 │ + ····});
+     57  68 │   
+     58     │ - ········this.targetWordService.getAllowedWords().subscribe((words)·=>·{
+     59     │ - ············this.indexAllowedWords(words);
+     60     │ - ········});
+     61     │ - ····}
+         69 │ + ····this.targetWordService.getAllowedWords().subscribe((words)·=>·{
+         70 │ + ······this.indexAllowedWords(words);
+         71 │ + ····});
+         72 │ + ··}
+     62  73 │   
+     63     │ - ····ngAfterViewInit():·void·{
+     64     │ - ········if·(this.lettersContainer?.nativeElement)·{
+     65     │ - ············this.simpleBar·=·new·SimpleBar(this.lettersContainer.nativeElement,·{
+     66     │ - ················autoHide:·true,
+     67     │ - ············});
+     68     │ - ········}
+     69     │ - ········this.focusByIndex(0);
+     70     │ - ········this.scheduleLayoutUpdate();
+         74 │ + ··ngAfterViewInit():·void·{
+         75 │ + ····if·(this.lettersContainer?.nativeElement)·{
+         76 │ + ······this.simpleBar·=·new·SimpleBar(this.lettersContainer.nativeElement,·{
+         77 │ + ········autoHide:·true,
+         78 │ + ······});
+         79 │ + ····}
+         80 │ + ····this.focusByIndex(0);
+         81 │ + ····this.scheduleLayoutUpdate();
+     71  82 │   
+     72     │ - ········this.letterInputs.changes.subscribe(()·=>·{
+     73     │ - ············if·(this.pendingFocusIndex·===·null)·return;
+     74     │ - ············this.focusByIndex(this.pendingFocusIndex);
+     75     │ - ············this.pendingFocusIndex·=·null;
+     76     │ - ············this.scheduleLayoutUpdate();
+     77     │ - ········});
+     78     │ - ····}
+         83 │ + ····this.letterInputs.changes.subscribe(()·=>·{
+         84 │ + ······if·(this.pendingFocusIndex·===·null)·return;
+         85 │ + ······this.focusByIndex(this.pendingFocusIndex);
+         86 │ + ······this.pendingFocusIndex·=·null;
+         87 │ + ······this.scheduleLayoutUpdate();
+         88 │ + ····});
+  736 more lines truncated
+  
+
+apps/client/src/app/services/target-word.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     4  4 │   
+     5  5 │   @Injectable({
+     6    │ - ····providedIn:·'root'
+        6 │ + ··providedIn:·'root',
+     7  7 │   })
+     8  8 │   export class TargetWord {
+     9    │ - ····private·_http·=·inject(HttpClient);
+        9 │ + ··private·_http·=·inject(HttpClient);
+    10 10 │   
+    11    │ - ····getTargetWords():·Observable<string[]>·{
+    12    │ - ········return·this._http
+    13    │ - ············.get<{·data:·string[]·}>(`assets/target-words.json`)
+    14    │ - ············.pipe(map((response)·=>·response.data·??·[]));
+    15    │ - ····}
+       11 │ + ··getTargetWords():·Observable<string[]>·{
+       12 │ + ····return·this._http.get<{·data:·string[]·}>(`assets/target-words.json`).pipe(map((response)·=>·response.data·??·[]));
+       13 │ + ··}
+    16 14 │   
+    17    │ - ····getAllowedWords():·Observable<string[]>·{
+    18    │ - ········return·this._http
+    19    │ - ············.get<{·data:·string[]·}>(`assets/allowed-words.json`)
+    20    │ - ············.pipe(map((response)·=>·response.data·??·[]));
+    21    │ - ····}
+       15 │ + ··getAllowedWords():·Observable<string[]>·{
+       16 │ + ····return·this._http.get<{·data:·string[]·}>(`assets/allowed-words.json`).pipe(map((response)·=>·response.data·??·[]));
+       17 │ + ··}
+    22 18 │   }
+    23 19 │   
+  
+
+apps/client/src/main.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    3 3 │   import { App } from './app/app';
+    4 4 │   
+    5   │ - bootstrapApplication(App,·appConfig)
+    6   │ - ··.catch((err)·=>·console.error(err));
+      5 │ + bootstrapApplication(App,·appConfig).catch((err)·=>·console.error(err));
+    7 6 │   
+  
+
+apps/client/src/reset.css format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     85  85 │   audio,
+     86  86 │   video {
+     87     │ - ····margin:·0;
+     88     │ - ····padding:·0;
+     89     │ - ····border:·0;
+     90     │ - ····font-size:·100%;
+     91     │ - ····font:·inherit;
+     92     │ - ····vertical-align:·baseline;
+         87 │ + ··margin:·0;
+         88 │ + ··padding:·0;
+         89 │ + ··border:·0;
+         90 │ + ··font-size:·100%;
+         91 │ + ··font:·inherit;
+         92 │ + ··vertical-align:·baseline;
+     93  93 │   }
+     94  94 │   
+    ······· │ 
+    105 105 │   nav,
+    106 106 │   section {
+    107     │ - ····display:·block;
+        107 │ + ··display:·block;
+    108 108 │   }
+    109 109 │   
+    110 110 │   body {
+    111     │ - ····line-height:·1;
+        111 │ + ··line-height:·1;
+    112 112 │   }
+    113 113 │   
+    114 114 │   ol,
+    115 115 │   ul {
+    116     │ - ····list-style:·none;
+        116 │ + ··list-style:·none;
+    117 117 │   }
+    118 118 │   
+    119 119 │   blockquote,
+    120 120 │   q {
+    121     │ - ····quotes:·none;
+        121 │ + ··quotes:·none;
+    122 122 │   }
+    123 123 │   
+    ······· │ 
+    126 126 │   q:before,
+    127 127 │   q:after {
+    128     │ - ····content:·'';
+    129     │ - ····content:·none;
+        128 │ + ··content:·'';
+        129 │ + ··content:·none;
+    130 130 │   }
+    131 131 │   
+    132 132 │   table {
+    133     │ - ····border-collapse:·collapse;
+    134     │ - ····border-spacing:·0;
+    135     │ - }
+        133 │ + ··border-collapse:·collapse;
+        134 │ + ··border-spacing:·0;
+        135 │ + }
+        136 │ + 
+  
+
+apps/client/src/styles.css format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     2  2 │   @import 'simplebar/dist/simplebar.css';
+     3  3 │   :root {
+     4    │ - ····--ui-font:·'Segoe·UI',·'SF·Pro·Text',·'Helvetica·Neue',·Arial,·sans-serif;
+     5    │ - ····--key-bg-color:·#d3d6da;
+     6    │ - ····--key-text-color:·#000000;
+     7    │ - ····--key-absent-bg-color:·#787c7e;
+     8    │ - ····--key-absent-border-color:·#565758;
+     9    │ - ····--key-absent-text-color:·#ffffff;
+    10    │ - ····--key-present-bg-color:·#c9b458;
+    11    │ - ····--key-present-border-color:·#a89647;
+    12    │ - ····--key-present-text-color:·#ffffff;
+    13    │ - ····--key-correct-bg-color:·#6aaa64;
+    14    │ - ····--key-correct-border-color:·#5b8f54;
+    15    │ - ····--key-correct-text-color:·#ffffff;
+        4 │ + ··--ui-font:·'Segoe·UI',·'SF·Pro·Text',·'Helvetica·Neue',·Arial,·sans-serif;
+        5 │ + ··--key-bg-color:·#d3d6da;
+        6 │ + ··--key-text-color:·#000000;
+        7 │ + ··--key-absent-bg-color:·#787c7e;
+        8 │ + ··--key-absent-border-color:·#565758;
+        9 │ + ··--key-absent-text-color:·#ffffff;
+       10 │ + ··--key-present-bg-color:·#c9b458;
+       11 │ + ··--key-present-border-color:·#a89647;
+       12 │ + ··--key-present-text-color:·#ffffff;
+       13 │ + ··--key-correct-bg-color:·#6aaa64;
+       14 │ + ··--key-correct-border-color:·#5b8f54;
+       15 │ + ··--key-correct-text-color:·#ffffff;
+    16 16 │   }
+    17 17 │   
+    18 18 │   body {
+    19    │ - ····font-family:·var(--ui-font);
+    20    │ - }
+       19 │ + ··font-family:·var(--ui-font);
+       20 │ + }
+       21 │ + 
+  
+
+apps/client/tsconfig.app.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     8  8 │       "types": []
+     9  9 │     },
+    10    │ - ··"include":·[
+    11    │ - ····"src/**/*.ts"
+    12    │ - ··],
+    13    │ - ··"exclude":·[
+    14    │ - ····"src/**/*.spec.ts"
+    15    │ - ··]
+       10 │ + ··"include":·["src/**/*.ts"],
+       11 │ + ··"exclude":·["src/**/*.spec.ts"]
+    16 12 │   }
+    17 13 │   
+  
+
+apps/client/tsconfig.spec.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     5  5 │     "compilerOptions": {
+     6  6 │       "outDir": "./out-tsc/spec",
+     7    │ - ····"types":·[
+     8    │ - ······"jasmine"
+     9    │ - ····]
+        7 │ + ····"types":·["jasmine"]
+    10  8 │     },
+    11    │ - ··"include":·[
+    12    │ - ····"src/**/*.ts"
+    13    │ - ··]
+        9 │ + ··"include":·["src/**/*.ts"]
+    14 10 │   }
+    15 11 │   
+  
+
+packages/shared/src/events.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    66 66 │   
+    67 67 │   export interface ClientToServerEvents {
+    68    │ - ··'room:create':·(payload:·CreateRoomPayload,·ack:·(response:·Ack<{·roomId:·RoomId;·playerId:·PlayerId;·state:·RoomStateSnapshot·}>)·=>·void)·=>·void;
+    69    │ - ··'room:join':·(payload:·JoinRoomPayload,·ack:·(response:·Ack<{·roomId:·RoomId;·playerId:·PlayerId;·state:·RoomStateSnapshot·}>)·=>·void)·=>·void;
+       68 │ + ··'room:create':·(
+       69 │ + ····payload:·CreateRoomPayload,
+       70 │ + ····ack:·(response:·Ack<{·roomId:·RoomId;·playerId:·PlayerId;·state:·RoomStateSnapshot·}>)·=>·void,
+       71 │ + ··)·=>·void;
+       72 │ + ··'room:join':·(
+       73 │ + ····payload:·JoinRoomPayload,
+       74 │ + ····ack:·(response:·Ack<{·roomId:·RoomId;·playerId:·PlayerId;·state:·RoomStateSnapshot·}>)·=>·void,
+       75 │ + ··)·=>·void;
+    70 76 │     'guess:submit': (payload: SubmitGuessPayload, ack: (response: Ack<{ state: RoomStateSnapshot }>) => void) => void;
+    71 77 │     'game:new': (payload: StartNewGamePayload, ack: (response: Ack<{ state: RoomStateSnapshot }>) => void) => void;
+  
+
+Checked 34 files in 30ms. No fixes applied.
+Found 20 errors.
+format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+
+ ELIFECYCLE  Command failed with exit code 1.

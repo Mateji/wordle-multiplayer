@@ -1,14 +1,14 @@
-type LetterState = 'correct' | 'present' | 'absent' | 'unset';
+export type LetterState = 'correct' | 'present' | 'absent' | 'unset';
 
-type Cell = {
-    letter: string;
-    state: LetterState;
+export type Cell = {
+  letter: string;
+  state: LetterState;
 };
 
-type Row = {
-    cells: Cell[];
-    locked: boolean;
-    enter?: boolean;
-    error?: boolean;
-    shake?: boolean;
+export type Row = {
+  cells: Cell[];
+  locked: boolean;
+  enter?: boolean;
+  error?: boolean;
+  shake?: boolean;
 };

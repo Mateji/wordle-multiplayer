@@ -7,8 +7,6 @@ import type {
   ClientToServerEvents,
   GuessCell,
   GuessEntry,
-  PlayerId,
-  PlayerSummary,
   RoomId,
   RoomSettings,
   RoomStateSnapshot,

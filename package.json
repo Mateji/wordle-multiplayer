@@ -7,6 +7,13 @@
     "dev:client": "pnpm --filter @wordle/client dev",
     "dev:server": "pnpm --filter @wordle/server dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "lint": "biome lint apps/client apps/server packages/shared",
+    "lint:fix": "biome lint --write apps/client apps/server packages/shared",
+    "format": "biome format --write apps/client apps/server packages/shared",
+    "format:check": "biome format apps/client apps/server packages/shared"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.12"
   }
 }

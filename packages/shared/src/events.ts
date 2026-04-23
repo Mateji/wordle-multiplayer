@@ -65,8 +65,14 @@ export interface StartNewGamePayload {
 }
 
 export interface ClientToServerEvents {
-  'room:create': (payload: CreateRoomPayload, ack: (response: Ack<{ roomId: RoomId; playerId: PlayerId; state: RoomStateSnapshot }>) => void) => void;
-  'room:join': (payload: JoinRoomPayload, ack: (response: Ack<{ roomId: RoomId; playerId: PlayerId; state: RoomStateSnapshot }>) => void) => void;
+  'room:create': (
+    payload: CreateRoomPayload,
+    ack: (response: Ack<{ roomId: RoomId; playerId: PlayerId; state: RoomStateSnapshot }>) => void,
+  ) => void;
+  'room:join': (
+    payload: JoinRoomPayload,
+    ack: (response: Ack<{ roomId: RoomId; playerId: PlayerId; state: RoomStateSnapshot }>) => void,
+  ) => void;
   'guess:submit': (payload: SubmitGuessPayload, ack: (response: Ack<{ state: RoomStateSnapshot }>) => void) => void;
   'game:new': (payload: StartNewGamePayload, ack: (response: Ack<{ state: RoomStateSnapshot }>) => void) => void;
 }
