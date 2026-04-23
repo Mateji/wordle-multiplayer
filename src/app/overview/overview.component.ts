@@ -2,6 +2,7 @@ import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, 
 import { SingleLetterDirective } from '../directives/single-letter-directive';
 import { KeyboardComponent } from "../keyboard/keyboard.component";
 import { TargetWord } from '../services/target-word';
+import SimpleBar from 'simplebar';
 
 @Component({
     selector: 'app-overview',
@@ -35,6 +36,8 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     private readonly targetWordService = inject(TargetWord);
     private readonly cdr = inject(ChangeDetectorRef);
 
+    private simpleBar?: SimpleBar;
+
     private pendingFocusIndex: number | null = null;
 
     ngOnInit(): void {
@@ -50,6 +53,11 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     }
 
     ngAfterViewInit(): void {
+        if (this.lettersContainer?.nativeElement) {
+            this.simpleBar = new SimpleBar(this.lettersContainer.nativeElement, {
+                autoHide: true,
+            });
+        }
         this.focusByIndex(0);
 
         this.letterInputs.changes.subscribe(() => {
@@ -222,11 +230,20 @@ export class OverviewComponent implements OnInit, AfterViewInit {
                 this.focusByIndex(this.pendingFocusIndex);
                 this.pendingFocusIndex = null;
             }
+            this.scrollToBottomIfNeeded();
         }, 0);
     }
 
     private focusByIndex(index: number): void {
         this.letterInputs.get(index)?.nativeElement.focus();
+    }
+
+    private scrollToBottomIfNeeded(): void {
+        const container = this.lettersContainer?.nativeElement;
+        if (!container) return;
+        const scrollTarget = container.querySelector<HTMLElement>('.simplebar-content-wrapper') ?? container;
+        if (scrollTarget.scrollHeight <= scrollTarget.clientHeight) return;
+        scrollTarget.scrollTop = scrollTarget.scrollHeight;
     }
 
     private resetGame(): void {

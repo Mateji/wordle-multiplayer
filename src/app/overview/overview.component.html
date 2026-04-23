@@ -1,7 +1,7 @@
 <div class="container">
     <form (submit)="onSubmit($event)" (keydown.enter)="onSubmit($event)">
-        <div class="wordle-container">
-            <div class="letter-container" #lettersContainer>
+        <div class="wordle-container" data-simplebar #lettersContainer>
+            <div class="letter-container">
                 @for (row of rows; track $index; let rowIndex = $index) {
                 <div class="letter-row" [class.row-enter]="row.enter" [class.row-error]="row.error" [class.row-shake]="row.shake">
                     @for (cell of row.cells; track $index; let cellIndex = $index) {

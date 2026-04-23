@@ -1,4 +1,5 @@
 /* You can add global styles to this file, and also import other style files */
+@import 'simplebar/dist/simplebar.css';
 :root {
     --ui-font: 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
     --key-bg-color: #d3d6da;
