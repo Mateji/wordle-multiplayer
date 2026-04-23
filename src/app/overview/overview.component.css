@@ -1,35 +1,80 @@
 .container {
     min-height: 100vh;
+    height: 100vh;
     width: 100%;
     display: flex;
-    justify-content: center;
-    align-items: stretch;
+    justify-content: flex-start;
+    align-items: center;
     margin-top: 0;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.topbar {
+    --topbar-height: 48px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: var(--topbar-height);
+    padding: 0 18px;
+    background: #f5f6f8;
+    border-bottom: 1px solid #e1e4ea;
+    font-family: var(--ui-font);
+    box-sizing: border-box;
+    position: fixed;
+    top: 0;
+    z-index: 5;
+    align-self: stretch;
+}
+
+.new-game {
+    border: 1px solid #cfd6df;
+    background: #ffffff;
+    color: #1e2329;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.new-game:hover {
+    border-color: #9aa7b4;
 }
 
 form {
-    height: 100dvh;
+    height: calc(100vh - 48px);
+    min-height: 0;
     width: 100%;
     max-width: 520px;
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr);
-    justify-items: center;
+    margin: 48px auto 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
     align-items: stretch;
+    box-sizing: border-box;
 }
 
 .wordle-container {
-    grid-row: 2;
     width: 100%;
     max-width: 100%;
     min-height: 0;
-    max-height: calc(100dvh - 300px);
     overflow: auto;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding-top: 6px;
+    padding-top: 12px;
     padding-bottom: 12px;
     box-sizing: border-box;
+}
+
+.status-row {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .wordle-container,
@@ -55,8 +100,7 @@ form {
 }
 
 .keyboard-container {
-    grid-row: 3;
-    padding-bottom: 16px;
+    padding: 10px 0 16px;
 }
 
 .letter-container {
@@ -135,10 +179,10 @@ form {
 }
 
 .word-error {
-    margin: 12px auto 0;
+    margin: 0;
     padding: 8px 14px;
     width: fit-content;
-    min-height: 32px;
+    min-height: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;

@@ -11,7 +11,10 @@ import SimpleBar from 'simplebar';
     styleUrl: './overview.component.css',
 })
 export class OverviewComponent implements OnInit, AfterViewInit {
+    @ViewChild('gameForm') gameForm?: ElementRef<HTMLElement>;
     @ViewChild('lettersContainer') lettersContainer?: ElementRef<HTMLElement>;
+    @ViewChild('letterRows') letterRows?: ElementRef<HTMLElement>;
+    @ViewChild('keyboardHost', { read: ElementRef }) keyboardHost?: ElementRef<HTMLElement>;
     @ViewChildren('letterInput') letterInputs!: QueryList<ElementRef<HTMLInputElement>>;
 
     rows: Row[] = [{ locked: false, cells: Array.from({ length: 5 }, () => ({ letter: '', state: 'unset' })) }];
@@ -21,6 +24,8 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     winTries = 0;
     invalidWordMessage = '';
     invalidWordVisible = false;
+    topOffset = 0;
+    wordleMaxHeight = 9999;
 
     private targetWord = '';
     private submittedText = '';
@@ -39,6 +44,9 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     private simpleBar?: SimpleBar;
 
     private pendingFocusIndex: number | null = null;
+    private baseWordleHeight = 0;
+    private readonly rowToKeyboardGap = 12;
+    private layoutRaf: number | null = null;
 
     ngOnInit(): void {
         this.targetWordService.getTargetWords().subscribe((words) => {
@@ -59,12 +67,19 @@ export class OverviewComponent implements OnInit, AfterViewInit {
             });
         }
         this.focusByIndex(0);
+        this.scheduleLayoutUpdate();
 
         this.letterInputs.changes.subscribe(() => {
             if (this.pendingFocusIndex === null) return;
             this.focusByIndex(this.pendingFocusIndex);
             this.pendingFocusIndex = null;
+            this.scheduleLayoutUpdate();
         });
+    }
+
+    @HostListener('window:resize')
+    onWindowResize(): void {
+        this.scheduleLayoutUpdate();
     }
 
     get keyStates(): Record<string, LetterState> {
@@ -231,6 +246,7 @@ export class OverviewComponent implements OnInit, AfterViewInit {
                 this.pendingFocusIndex = null;
             }
             this.scrollToBottomIfNeeded();
+            this.scheduleLayoutUpdate();
         }, 0);
     }
 
@@ -258,7 +274,10 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         this.pickRandomTargetWord();
 
         this.pendingFocusIndex = 0;
-        setTimeout(() => this.focusByIndex(0), 0);
+        setTimeout(() => {
+            this.focusByIndex(0);
+            this.scheduleLayoutUpdate();
+        }, 0);
     }
 
     onPlayAgain(): void {
@@ -267,6 +286,10 @@ export class OverviewComponent implements OnInit, AfterViewInit {
 
     onCloseWinPopup(): void {
         this.showWinPopup = false;
+    }
+
+    onNewGame(): void {
+        this.resetGame();
     }
 
     private pickRandomTargetWord(): void {
@@ -330,7 +353,7 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         }
         this.invalidWordShowTimeout = setTimeout(() => {
             this.invalidWordVisible = true;
-            this.cdr.detectChanges();
+            this.scheduleLayoutUpdate();
         }, 0);
 
         setTimeout(() => {
@@ -345,7 +368,7 @@ export class OverviewComponent implements OnInit, AfterViewInit {
             this.invalidWordVisible = false;
             this.clearRowError();
             this.invalidWordTimeout = null;
-            this.cdr.detectChanges();
+            this.scheduleLayoutUpdate();
         }, 2300);
     }
 
@@ -359,6 +382,7 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     }
 
     private clearInvalidWordMessage(): void {
+        const hadVisibleError = this.invalidWordVisible || !!this.invalidWordMessage || this.errorRowIndex !== null;
         if (this.invalidWordTimeout) {
             clearTimeout(this.invalidWordTimeout);
             this.invalidWordTimeout = null;
@@ -370,7 +394,9 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         this.invalidWordMessage = '';
         this.invalidWordVisible = false;
         this.clearRowError();
-        this.cdr.detectChanges();
+        if (hadVisibleError) {
+            this.scheduleLayoutUpdate();
+        }
     }
 
     private clearRowError(): void {
@@ -404,12 +430,49 @@ export class OverviewComponent implements OnInit, AfterViewInit {
         row.shake = false;
         this.rowShakeStartTimeout = setTimeout(() => {
             row.shake = true;
-            this.cdr.detectChanges();
+            this.scheduleLayoutUpdate();
         }, 0);
         this.rowShakeEndTimeout = setTimeout(() => {
             row.shake = false;
-            this.cdr.detectChanges();
+            this.scheduleLayoutUpdate();
         }, 340);
+    }
+
+    private scheduleLayoutUpdate(): void {
+        if (this.layoutRaf !== null) {
+            cancelAnimationFrame(this.layoutRaf);
+        }
+        this.layoutRaf = requestAnimationFrame(() => {
+            this.layoutRaf = null;
+            this.updateDynamicLayout();
+            this.cdr.detectChanges();
+        });
+    }
+
+    private updateDynamicLayout(): void {
+        const form = this.gameForm?.nativeElement;
+        const keyboard = this.keyboardHost?.nativeElement;
+        const rows = this.letterRows?.nativeElement;
+        if (!form || !keyboard || !rows) return;
+
+        const stageHeight = form.clientHeight;
+        const keyboardHeight = keyboard.getBoundingClientRect().height;
+        const naturalWordleHeight = rows.scrollHeight + 12;
+
+        if (this.baseWordleHeight === 0) {
+            this.baseWordleHeight = naturalWordleHeight;
+        }
+
+        const initialTopOffset = Math.max(
+            0,
+            (stageHeight - (this.baseWordleHeight + keyboardHeight + this.rowToKeyboardGap)) / 2
+        );
+
+        const growth = Math.max(0, naturalWordleHeight - this.baseWordleHeight);
+        this.topOffset = Math.max(0, initialTopOffset - growth);
+
+        const maxHeight = stageHeight - keyboardHeight - this.rowToKeyboardGap - this.topOffset;
+        this.wordleMaxHeight = Math.max(60, Math.floor(maxHeight));
     }
 
 }

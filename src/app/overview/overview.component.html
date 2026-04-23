@@ -1,7 +1,10 @@
 <div class="container">
-    <form (submit)="onSubmit($event)" (keydown.enter)="onSubmit($event)">
-        <div class="wordle-container" data-simplebar #lettersContainer>
-            <div class="letter-container">
+    <div class="topbar" role="toolbar" aria-label="Actions">
+        <button type="button" class="new-game" (click)="onNewGame()">Neues Spiel</button>
+    </div>
+    <form #gameForm (submit)="onSubmit($event)" (keydown.enter)="onSubmit($event)" [style.padding-top.px]="topOffset">
+        <div class="wordle-container" data-simplebar #lettersContainer [style.max-height.px]="wordleMaxHeight">
+            <div class="letter-container" #letterRows>
                 @for (row of rows; track $index; let rowIndex = $index) {
                 <div class="letter-row" [class.row-enter]="row.enter" [class.row-error]="row.error" [class.row-shake]="row.shake">
                     @for (cell of row.cells; track $index; let cellIndex = $index) {
@@ -17,11 +20,13 @@
                 </div>
                 }
             </div>
-            <div class="word-error" [class.is-visible]="invalidWordVisible" role="status" aria-live="polite">
+        </div>
+        <div class="status-row" role="status" aria-live="polite">
+            <div class="word-error" [class.is-visible]="invalidWordVisible">
                 {{ invalidWordMessage }}
             </div>
         </div>
-        <app-keyboard class="keyboard-container" [keyStates]="keyStates" (keyPressed)="onKeyboardKey($event)"></app-keyboard>
+        <app-keyboard #keyboardHost class="keyboard-container" [keyStates]="keyStates" (keyPressed)="onKeyboardKey($event)"></app-keyboard>
     </form>
     @if (showWinPopup) {
     <div class="overlay" role="dialog" aria-modal="true" aria-labelledby="win-title">

@@ -17,15 +17,15 @@
 
 .key {
     flex: 1 1 0;
-    min-width: 0;
+    min-width: clamp(28px, 7.5vw, 40px);
 
-    height: clamp(40px, 9vw, 58px);
+    height: clamp(42px, 7.5vw, 58px);
     border-radius: 4px;
 
     color: var(--key-text-color);
     background-color: var(--key-bg-color);
 
-    font-size: clamp(11px, 2.6vw, 18px);
+    font-size: clamp(12px, 2.2vw, 18px);
     font-weight: 700;
     text-transform: uppercase;
 
@@ -41,7 +41,7 @@
 
 .key.is-wide {
     flex: 1.2 1 0;
-    min-width: 0;
+    min-width: clamp(50px, 12vw, 72px);
     font-size: 0.6em;
 }
 
