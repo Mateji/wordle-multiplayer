@@ -2,6 +2,25 @@
 
 These instructions define the baseline architecture and product behavior. Future changes must preserve this baseline unless explicitly requested.
 
+## Instruction Layers (Read Order)
+- Base rules in this file apply to the full repository.
+- Scope-specific requirements are defined in:
+  - `.github/copilot-instructions-shared.md`
+  - `.github/copilot-instructions-server.md`
+  - `.github/copilot-instructions-client.md`
+- When instructions conflict, keep critical baseline constraints from this file and resolve details in favor of the relevant scope file.
+
+## Recommended Delivery Order (Multiplayer)
+Implement multiplayer features in this order to avoid contract drift:
+1. Shared contracts first (`packages/shared`)
+2. Server behavior second (`apps/server`)
+3. Client integration last (`apps/client`)
+
+Rationale:
+- Shared types/events are the single source of truth.
+- Server enforces authority, validation, timer, and privacy-safe state.
+- Client should bind to finalized contracts and server snapshots.
+
 ## Repository Architecture (Critical)
 - This repository is a monorepo with these roots:
   - `apps/client`: Angular frontend.
