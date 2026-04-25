@@ -1,13 +1,17 @@
 export type RoomId = string;
 export type PlayerId = string;
+export type RoundId = string;
 
 export type LetterState = 'correct' | 'present' | 'absent' | 'unset';
+export type ProgressCellState = 'correct' | 'present' | 'unset';
 
 export type RoomPhase = 'lobby' | 'in-game' | 'finished';
+export type RoundStatus = 'idle' | 'running' | 'solved' | 'timeout' | 'cancelled';
 
 export interface RoomSettings {
   wordLength: number;
   maxGuesses: number;
+  timeLimitSeconds: number;
   language: 'de';
 }
 
@@ -29,13 +33,33 @@ export interface GuessEntry {
   submittedAt: number;
 }
 
+export interface PlayerProgressCell {
+  state: ProgressCellState;
+}
+
+export interface PlayerRoundProgress {
+  playerId: PlayerId;
+  cells: PlayerProgressCell[];
+  solved: boolean;
+  updatedAt: number;
+}
+
+export interface RoundSnapshot {
+  id: RoundId;
+  status: RoundStatus;
+  startedAt: number | null;
+  endsAt: number | null;
+  winnerPlayerId: PlayerId | null;
+}
+
 export interface RoomStateSnapshot {
   id: RoomId;
   phase: RoomPhase;
   hostPlayerId: PlayerId;
   settings: RoomSettings;
   players: PlayerSummary[];
-  guesses: GuessEntry[];
+  round: RoundSnapshot;
+  playerProgress: PlayerRoundProgress[];
   updatedAt: number;
 }
 
@@ -64,6 +88,17 @@ export interface StartNewGamePayload {
   playerId: PlayerId;
 }
 
+export interface UpdateRoomSettingsPayload {
+  roomId: RoomId;
+  playerId: PlayerId;
+  settings: Partial<Pick<RoomSettings, 'wordLength' | 'maxGuesses' | 'timeLimitSeconds'>>;
+}
+
+export interface StartRoundPayload {
+  roomId: RoomId;
+  playerId: PlayerId;
+}
+
 export interface ClientToServerEvents {
   'room:create': (
     payload: CreateRoomPayload,
@@ -73,7 +108,15 @@ export interface ClientToServerEvents {
     payload: JoinRoomPayload,
     ack: (response: Ack<{ roomId: RoomId; playerId: PlayerId; state: RoomStateSnapshot }>) => void,
   ) => void;
-  'guess:submit': (payload: SubmitGuessPayload, ack: (response: Ack<{ state: RoomStateSnapshot }>) => void) => void;
+  'guess:submit': (
+    payload: SubmitGuessPayload,
+    ack: (response: Ack<{ state: RoomStateSnapshot; result: GuessCell[] }>) => void,
+  ) => void;
+  'room:update-settings': (
+    payload: UpdateRoomSettingsPayload,
+    ack: (response: Ack<{ state: RoomStateSnapshot }>) => void,
+  ) => void;
+  'game:start': (payload: StartRoundPayload, ack: (response: Ack<{ state: RoomStateSnapshot }>) => void) => void;
   'game:new': (payload: StartNewGamePayload, ack: (response: Ack<{ state: RoomStateSnapshot }>) => void) => void;
 }
 

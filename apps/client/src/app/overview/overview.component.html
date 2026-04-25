@@ -1,44 +1,189 @@
 <div class="container">
-    <div class="topbar" role="toolbar" aria-label="Actions">
-        <button type="button" class="new-game" (click)="onNewGame()">Neues Spiel</button>
-    </div>
-    <form #gameForm (submit)="onSubmit($event)" (keydown.enter)="onSubmit($event)" [style.padding-top.px]="topOffset">
-        <div class="wordle-container" data-simplebar #lettersContainer [style.max-height.px]="wordleMaxHeight">
-            <div class="letter-container" #letterRows>
-                @for (row of rows; track $index; let rowIndex = $index) {
-                <div class="letter-row" [class.row-enter]="row.enter" [class.row-error]="row.error" [class.row-shake]="row.shake">
+  <div class="topbar" role="toolbar" aria-label="Actions">
+    <button type="button" class="new-game" (click)="onNewGame()">Neues Spiel</button>
+  </div>
+
+  <main class="stage">
+    @if (mode === 'entry') {
+      <section class="entry-card">
+        <h1>Mehrspieler Wordle</h1>
+        <p class="hint">Raum erstellen oder mit Shortcode beitreten.</p>
+
+        <label>
+          Spielername
+          <input type="text" [(ngModel)]="playerName" maxlength="20" placeholder="Dein Name" />
+        </label>
+
+        <div class="entry-grid">
+          <article class="entry-box">
+            <h2>Raum erstellen</h2>
+            <label>
+              Buchstaben
+              <input type="number" min="4" max="12" [(ngModel)]="settingsForm.wordLength" />
+            </label>
+            <label>
+              Zeitlimit (Sek.)
+              <input type="number" min="30" max="900" [(ngModel)]="settingsForm.timeLimitSeconds" />
+            </label>
+            <button type="button" (click)="onCreateRoom()" [disabled]="isBusy">Raum erstellen</button>
+          </article>
+
+          <article class="entry-box">
+            <h2>Raum beitreten</h2>
+            <label>
+              Shortcode
+              <input type="text" [(ngModel)]="joinCode" maxlength="8" placeholder="z.B. 4H7KQ2" />
+            </label>
+            <button type="button" (click)="onJoinRoom()" [disabled]="isBusy">Beitreten</button>
+          </article>
+        </div>
+      </section>
+    }
+
+    @if (mode === 'lobby' && roomState) {
+      <section class="lobby-card">
+        <header class="lobby-header">
+          <h2>Lobby</h2>
+          <div class="room-code">Raumcode: <strong>{{ roomState.id }}</strong></div>
+        </header>
+
+        <div class="lobby-grid">
+          <article>
+            <h3>Einstellungen</h3>
+            <label>
+              Buchstaben
+              <input type="number" min="4" max="12" [(ngModel)]="settingsForm.wordLength" [disabled]="!isHost || isBusy" />
+            </label>
+            <label>
+              Zeitlimit (Sek.)
+              <input
+                type="number"
+                min="30"
+                max="900"
+                [(ngModel)]="settingsForm.timeLimitSeconds"
+                [disabled]="!isHost || isBusy"
+              />
+            </label>
+            <label>
+              Versuche
+              <input type="number" min="1" max="10" [(ngModel)]="settingsForm.maxGuesses" [disabled]="!isHost || isBusy" />
+            </label>
+            @if (isHost) {
+              <div class="lobby-actions">
+                <button type="button" (click)="onUpdateLobbySettings()" [disabled]="isBusy">Einstellungen speichern</button>
+                <button type="button" (click)="onStartRound()" [disabled]="isBusy">Runde starten</button>
+              </div>
+            } @else {
+              <p class="hint">Nur der Host kann Einstellungen aendern und die Runde starten.</p>
+            }
+          </article>
+
+          <article>
+            <h3>Spieler</h3>
+            <ul class="player-list">
+              @for (player of playerList; track player.id) {
+                <li>
+                  <span>{{ player.name }}</span>
+                  <span class="status" [class.offline]="!player.connected">{{ player.connected ? 'online' : 'offline' }}</span>
+                </li>
+              }
+            </ul>
+          </article>
+        </div>
+      </section>
+    }
+
+    @if (mode === 'game' && roomState) {
+      <section class="game-shell">
+        <aside class="progress-panel">
+          <h3>Spielerfortschritt</h3>
+          @for (player of playerList; track player.id) {
+            <div class="progress-row" [class.me]="isCurrentPlayer(player.id)">
+              <span class="name">{{ player.name }}</span>
+              <div class="progress-cells">
+                @for (cellState of getProgressCells(player.id); track $index) {
+                  <span
+                    class="progress-cell"
+                    [class.state-unset]="cellState === 'unset'"
+                    [class.state-present]="cellState === 'present'"
+                    [class.state-correct]="cellState === 'correct'"
+                  ></span>
+                }
+              </div>
+            </div>
+          }
+        </aside>
+
+        <div class="board-panel">
+          <div class="game-meta">
+            <span>Raum: {{ roomState.id }}</span>
+            <span>Zeit: {{ timeRemainingLabel }}</span>
+            <span>Du: {{ myPlayerName }}</span>
+          </div>
+
+          <form #gameForm (submit)="onSubmit($event)" [style.padding-top.px]="topOffset">
+            <div class="wordle-container" #lettersContainer [style.max-height.px]="wordleMaxHeight">
+              <div class="letter-container" #letterRows>
+                @for (row of rows; track $index) {
+                  <div class="letter-row" [class.row-enter]="row.enter" [class.row-error]="row.error" [class.row-shake]="row.shake">
                     @for (cell of row.cells; track $index; let cellIndex = $index) {
-                    <input #letterInput type="text" class="letter" name="one" appSingleLetter
+                      <input
+                        #letterInput
+                        type="text"
+                        class="letter"
+                        appSingleLetter
                         [value]="row.cells[cellIndex].letter"
-                        [disabled]="row.locked"
-                        [attr.tabindex]="row.locked ? -1 : 0"
+                        [disabled]="row.locked || !isGameInputEnabled"
+                        [attr.tabindex]="row.locked || !isGameInputEnabled ? -1 : 0"
                         [class.correct]="row.cells[cellIndex].state === 'correct'"
                         [class.present]="row.cells[cellIndex].state === 'present'"
                         [class.absent]="row.cells[cellIndex].state === 'absent'"
-                        [class.unset]="row.cells[cellIndex].state === 'unset'" />
+                        [class.unset]="row.cells[cellIndex].state === 'unset'"
+                      />
                     }
-                </div>
+                  </div>
                 }
+              </div>
             </div>
-        </div>
-        <div class="status-row" role="status" aria-live="polite">
-            <div class="word-error" [class.is-visible]="invalidWordVisible">
-                {{ invalidWordMessage }}
+
+            <div class="status-row" role="status" aria-live="polite">
+              <div class="word-error" [class.is-visible]="invalidWordVisible">{{ invalidWordMessage }}</div>
             </div>
+
+            <app-keyboard
+              #keyboardHost
+              class="keyboard-container"
+              [keyStates]="keyStates"
+              (keyPressed)="onKeyboardKey($event)"
+            ></app-keyboard>
+          </form>
         </div>
-        <app-keyboard #keyboardHost class="keyboard-container" [keyStates]="keyStates" (keyPressed)="onKeyboardKey($event)"></app-keyboard>
-    </form>
-    @if (showWinPopup) {
-    <div class="overlay" role="dialog" aria-modal="true" aria-labelledby="win-title">
-        <div class="popup">
-            <h2 id="win-title">Herzlichen Glueckwunsch!</h2>
-            <p class="score">Du hast das Wort in {{ winTries }} Zuegen erraten.</p>
-            <p class="next-round">Bereit fuer die naechste Runde?</p>
-            <div class="popup-actions">
-                <button type="button" class="play-again" (click)="onPlayAgain()">Neue Runde starten</button>
-                <button type="button" class="cancel" (click)="onCloseWinPopup()">Abbrechen</button>
-            </div>
-        </div>
-    </div>
+      </section>
     }
+
+    @if (actionError || serverError) {
+      <div class="global-error">{{ actionError || serverError }}</div>
+    }
+  </main>
+
+  @if (showWinPopup && roomState) {
+    <div class="overlay" role="dialog" aria-modal="true" aria-labelledby="win-title">
+      <div class="popup">
+        <h2 id="win-title">Runde beendet</h2>
+        <p class="score">{{ winMessage }}</p>
+        @if (isHost) {
+          <p class="next-round">Bereit fuer die naechste Runde?</p>
+          <div class="popup-actions">
+            <button type="button" class="play-again" (click)="onPlayAgain()">Neue Runde starten</button>
+            <button type="button" class="cancel" (click)="onCloseWinPopup()">Schliessen</button>
+          </div>
+        } @else {
+          <p class="next-round">Warte auf den Host fuer die naechste Runde.</p>
+          <div class="popup-actions">
+            <button type="button" class="cancel" (click)="onCloseWinPopup()">Schliessen</button>
+          </div>
+        }
+      </div>
+    </div>
+  }
 </div>

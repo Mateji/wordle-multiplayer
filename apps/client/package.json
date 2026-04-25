@@ -26,10 +26,12 @@
     "@angular/common": "^20.3.0",
     "@angular/compiler": "^20.3.0",
     "@angular/core": "^20.3.0",
+    "@wordle/shared": "workspace:*",
     "@angular/forms": "^20.3.0",
     "@angular/platform-browser": "^20.3.0",
     "@angular/router": "^20.3.0",
     "rxjs": "~7.8.0",
+    "socket.io-client": "^4.8.1",
     "simplebar": "^6.3.3",
     "tslib": "^2.3.0"
   },

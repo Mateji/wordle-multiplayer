@@ -4,52 +4,70 @@ import {
   Component,
   ElementRef,
   HostListener,
+  inject,
+  OnDestroy,
   OnInit,
   QueryList,
   ViewChild,
   ViewChildren,
-  inject,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import type { GuessCell, PlayerId, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
+import { Subscription } from 'rxjs';
 import { SingleLetterDirective } from '../directives/single-letter-directive';
 import { KeyboardComponent } from '../keyboard/keyboard.component';
 import type { LetterState, Row } from '../models';
-import { TargetWord } from '../services/target-word';
-import SimpleBar from 'simplebar';
+import { MultiplayerService } from '../services/multiplayer.service';
+
+type ViewMode = 'entry' | 'lobby' | 'game';
 
 @Component({
   selector: 'app-overview',
-  imports: [SingleLetterDirective, KeyboardComponent],
+  imports: [FormsModule, SingleLetterDirective, KeyboardComponent],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.css',
 })
-export class OverviewComponent implements OnInit, AfterViewInit {
+export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('gameForm') gameForm?: ElementRef<HTMLElement>;
   @ViewChild('lettersContainer') lettersContainer?: ElementRef<HTMLElement>;
   @ViewChild('letterRows') letterRows?: ElementRef<HTMLElement>;
   @ViewChild('keyboardHost', { read: ElementRef }) keyboardHost?: ElementRef<HTMLElement>;
   @ViewChildren('letterInput') letterInputs!: QueryList<ElementRef<HTMLInputElement>>;
 
-  rows: Row[] = [{ locked: false, cells: Array.from({ length: 5 }, () => ({ letter: '', state: 'unset' })) }];
+  mode: ViewMode = 'entry';
+
+  playerName = '';
+  joinCode = '';
+  roomId = '';
+  playerId = '';
+
+  roomState: RoomStateSnapshot | null = null;
+  actionError = '';
+  serverError = '';
+  isBusy = false;
+
+  settingsForm = {
+    wordLength: 5,
+    maxGuesses: 6,
+    timeLimitSeconds: 120,
+  };
+
+  rows: Row[] = [];
   activeRow = 0;
   gameOver = false;
   showWinPopup = false;
-  winTries = 0;
+  winMessage = '';
+
   invalidWordMessage = '';
   invalidWordVisible = false;
+
   topOffset = 0;
   wordleMaxHeight = 9999;
 
-  private targetWord = '';
-  private submittedText = '';
-  private targetWordsByLength = new Map<number, string[]>();
-  private allowedWordsByLength = new Map<number, Set<string>>();
-  private invalidWordTimeout: ReturnType<typeof setTimeout> | null = null;
-  private invalidWordShowTimeout: ReturnType<typeof setTimeout> | null = null;
-  private errorRowIndex: number | null = null;
-  private rowShakeStartTimeout: ReturnType<typeof setTimeout> | null = null;
-  private rowShakeEndTimeout: ReturnType<typeof setTimeout> | null = null;
+  nowTimestamp = Date.now();
 
-  private readonly targetWordService = inject(TargetWord);
+  private subscriptions = new Subscription();
+  private readonly multiplayer = inject(MultiplayerService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   private pendingFocusIndex: number | null = null;
@@ -57,26 +75,34 @@ export class OverviewComponent implements OnInit, AfterViewInit {
   private readonly rowToKeyboardGap = 12;
   private layoutRaf: number | null = null;
 
-  ngOnInit(): void {
-    this.targetWordService.getTargetWords().subscribe((words) => {
-      this.indexTargetWords(words);
-      this.pickRandomTargetWord();
-    });
+  private invalidWordTimeout: ReturnType<typeof setTimeout> | null = null;
+  private invalidWordShowTimeout: ReturnType<typeof setTimeout> | null = null;
+  private errorRowIndex: number | null = null;
+  private rowShakeStartTimeout: ReturnType<typeof setTimeout> | null = null;
+  private rowShakeEndTimeout: ReturnType<typeof setTimeout> | null = null;
+  private tickerInterval: ReturnType<typeof setInterval> | null = null;
+  private currentRoundId = '';
 
-    this.targetWordService.getAllowedWords().subscribe((words) => {
-      this.indexAllowedWords(words);
-    });
+  ngOnInit(): void {
+    this.resetRows(this.settingsForm.wordLength);
+
+    this.subscriptions.add(
+      this.multiplayer.roomState$.subscribe((state) => {
+        if (!state) {
+          return;
+        }
+        this.applyRoomState(state);
+      }),
+    );
+
+    this.subscriptions.add(
+      this.multiplayer.serverError$.subscribe((error) => {
+        this.serverError = error;
+      }),
+    );
   }
 
   ngAfterViewInit(): void {
-    if (this.lettersContainer?.nativeElement) {
-      new SimpleBar(this.lettersContainer.nativeElement, {
-        autoHide: true,
-      });
-    }
-    this.focusByIndex(0);
-    this.scheduleLayoutUpdate();
-
     this.letterInputs.changes.subscribe(() => {
       if (this.pendingFocusIndex === null) return;
       this.focusByIndex(this.pendingFocusIndex);
@@ -85,85 +111,20 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+    this.clearTransientTimers();
+    this.clearTicker();
+  }
+
   @HostListener('window:resize')
   onWindowResize(): void {
     this.scheduleLayoutUpdate();
   }
 
-  get keyStates(): Record<string, LetterState> {
-    const priority: Record<LetterState, number> = {
-      unset: 0,
-      absent: 1,
-      present: 2,
-      correct: 3,
-    };
-
-    const map: Record<string, LetterState> = {};
-
-    for (const row of this.rows) {
-      for (const cell of row.cells) {
-        if (!cell.letter) continue;
-        const letter = this.normalizeKeyLetter(cell.letter);
-        const current = map[letter] ?? 'unset';
-        if (priority[cell.state] > priority[current]) {
-          map[letter] = cell.state;
-        }
-      }
-    }
-
-    return map;
-  }
-
-  onKeyboardKey(key: string): void {
-    this.clearInvalidWordMessage();
-    this.clearRowError();
-
-    const row = this.rows[this.activeRow];
-    if (!row || row.locked) return;
-
-    if (key === 'Enter') {
-      this.onSubmit(new Event('submit'));
-      return;
-    }
-
-    const start = this.activeRow * 5;
-    const end = start + 5;
-    const rowInputs = this.letterInputs.toArray().slice(start, end);
-
-    if (key === 'Backspace') {
-      const lastFilledIndex = [...rowInputs]
-        .map((input) => input.nativeElement.value)
-        .map((value, index) => ({ value, index }))
-        .filter((entry) => entry.value)
-        .pop()?.index;
-
-      if (lastFilledIndex === undefined) return;
-
-      rowInputs[lastFilledIndex].nativeElement.value = '';
-      row.cells[lastFilledIndex].letter = '';
-      rowInputs[lastFilledIndex].nativeElement.focus();
-      return;
-    }
-
-    if (!/^[a-zäöüß]$/i.test(key)) return;
-
-    const emptyIndex = rowInputs.findIndex((input) => !input.nativeElement.value);
-
-    if (emptyIndex === -1) return;
-
-    const nextValue = this.normalizeInputLetter(key);
-    rowInputs[emptyIndex].nativeElement.value = nextValue;
-    row.cells[emptyIndex].letter = nextValue;
-
-    const nextInput = rowInputs[emptyIndex + 1];
-    if (nextInput) {
-      nextInput.nativeElement.focus();
-    }
-  }
-
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent): void {
-    if (this.gameOver) return;
+    if (!this.isGameInputEnabled) return;
 
     const target = event.target as HTMLElement | null;
     if (target?.closest('input.letter')) return;
@@ -188,55 +149,388 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     }
   }
 
-  onSubmit(event: Event) {
-    event.preventDefault();
-    if (this.gameOver) return;
-    if (!this.targetWord) return;
+  get isHost(): boolean {
+    return !!this.roomState && this.roomState.hostPlayerId === this.playerId;
+  }
 
-    const start = this.activeRow * 5;
-    const end = start + 5;
+  get isGameInputEnabled(): boolean {
+    return this.mode === 'game' && this.roomState?.phase === 'in-game' && this.roomState.round.status === 'running';
+  }
 
-    const rowInputs = this.letterInputs.toArray().slice(start, end);
-    if (rowInputs.some((input) => !input.nativeElement.value)) {
-      return; // nicht submitten, wenn ein Feld leer ist
-    }
+  get playerList(): PlayerSummary[] {
+    return this.roomState?.players ?? [];
+  }
 
-    this.submittedText = rowInputs.map((input) => input.nativeElement.value).join('');
-    if (!this.isAllowedWord(this.submittedText)) {
-      this.showInvalidWordFeedback(rowInputs);
-      return;
-    }
+  get currentWordLength(): number {
+    return this.roomState?.settings.wordLength ?? this.settingsForm.wordLength;
+  }
 
-    const submittedNormalized = this.submittedText.toLocaleLowerCase('de-DE');
-    const targetNormalized = this.targetWord.toLocaleLowerCase('de-DE');
+  get currentMaxGuesses(): number {
+    return this.roomState?.settings.maxGuesses ?? this.settingsForm.maxGuesses;
+  }
 
-    for (let i = 0; i < 5; i++) {
-      const cell = this.rows[this.activeRow].cells[i];
-      const submittedLetter = this.submittedText[i];
-      const normalizedLetter = submittedNormalized[i];
-      cell.letter = submittedLetter;
-      if (normalizedLetter === targetNormalized[i]) {
-        cell.state = 'correct';
-      } else if (targetNormalized.includes(normalizedLetter)) {
-        cell.state = 'present';
-      } else {
-        cell.state = 'absent';
+  get keyStates(): Record<string, LetterState> {
+    const priority: Record<LetterState, number> = {
+      unset: 0,
+      absent: 1,
+      present: 2,
+      correct: 3,
+    };
+
+    const map: Record<string, LetterState> = {};
+
+    for (const row of this.rows) {
+      for (const cell of row.cells) {
+        if (!cell.letter) continue;
+        const letter = this.normalizeInputLetter(cell.letter);
+        const current = map[letter] ?? 'unset';
+        if (priority[cell.state] > priority[current]) {
+          map[letter] = cell.state;
+        }
       }
     }
 
-    this.rows[this.activeRow].locked = true;
+    return map;
+  }
 
-    if (submittedNormalized === targetNormalized) {
-      this.gameOver = true;
-      this.winTries = this.activeRow + 1;
-      this.showWinPopup = true;
+  get timeRemainingLabel(): string {
+    const endsAt = this.roomState?.round.endsAt;
+    if (!endsAt || this.roomState?.phase !== 'in-game') {
+      return '--:--';
+    }
+
+    const remaining = Math.max(0, Math.ceil((endsAt - this.nowTimestamp) / 1000));
+    const minutes = Math.floor(remaining / 60)
+      .toString()
+      .padStart(2, '0');
+    const seconds = (remaining % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  }
+
+  get myPlayerName(): string {
+    return this.playerList.find((player) => player.id === this.playerId)?.name ?? 'Ich';
+  }
+
+  get canHostStartRound(): boolean {
+    if (!this.isHost || !this.roomState) {
+      return false;
+    }
+
+    return this.roomState.phase === 'lobby' || this.roomState.phase === 'finished';
+  }
+
+  onKeyboardKey(key: string): void {
+    this.actionError = '';
+    this.serverError = '';
+    this.multiplayer.clearServerError();
+    this.clearInvalidWordMessage();
+    this.clearRowError();
+
+    const row = this.rows[this.activeRow];
+    if (!row || row.locked || !this.isGameInputEnabled) return;
+
+    if (key === 'Enter') {
+      this.onSubmit(new Event('submit'));
       return;
     }
 
+    const start = this.activeRow * this.currentWordLength;
+    const end = start + this.currentWordLength;
+    const rowInputs = this.letterInputs.toArray().slice(start, end);
+
+    if (key === 'Backspace') {
+      const lastFilledIndex = [...rowInputs]
+        .map((input) => input.nativeElement.value)
+        .map((value, index) => ({ value, index }))
+        .filter((entry) => entry.value)
+        .pop()?.index;
+
+      if (lastFilledIndex === undefined) return;
+
+      rowInputs[lastFilledIndex].nativeElement.value = '';
+      row.cells[lastFilledIndex].letter = '';
+      rowInputs[lastFilledIndex].nativeElement.focus();
+      return;
+    }
+
+    if (!/^[a-zäöüß]$/i.test(key)) return;
+
+    const emptyIndex = rowInputs.findIndex((input) => !input.nativeElement.value);
+    if (emptyIndex === -1) return;
+
+    const nextValue = this.normalizeInputLetter(key);
+    rowInputs[emptyIndex].nativeElement.value = nextValue;
+    row.cells[emptyIndex].letter = nextValue;
+
+    const nextInput = rowInputs[emptyIndex + 1];
+    if (nextInput) {
+      nextInput.nativeElement.focus();
+    }
+  }
+
+  async onCreateRoom(): Promise<void> {
+    if (!this.playerName.trim()) {
+      this.actionError = 'Bitte gib einen Spielernamen ein.';
+      return;
+    }
+
+    this.actionError = '';
+    this.serverError = '';
+    this.isBusy = true;
+
+    try {
+      const response = await this.multiplayer.createRoom({
+        playerName: this.playerName,
+        settings: {
+          wordLength: this.settingsForm.wordLength,
+          maxGuesses: this.settingsForm.maxGuesses,
+          timeLimitSeconds: this.settingsForm.timeLimitSeconds,
+        },
+      });
+      this.playerId = response.playerId;
+      this.roomId = response.roomId;
+      this.applyRoomState(response.state);
+    } catch (error) {
+      this.actionError = error instanceof Error ? error.message : 'Raum konnte nicht erstellt werden.';
+    } finally {
+      this.isBusy = false;
+    }
+  }
+
+  async onJoinRoom(): Promise<void> {
+    if (!this.playerName.trim()) {
+      this.actionError = 'Bitte gib einen Spielernamen ein.';
+      return;
+    }
+
+    if (!this.joinCode.trim()) {
+      this.actionError = 'Bitte gib einen Raumcode ein.';
+      return;
+    }
+
+    this.actionError = '';
+    this.serverError = '';
+    this.isBusy = true;
+
+    try {
+      const response = await this.multiplayer.joinRoom({
+        roomId: this.joinCode,
+        playerName: this.playerName,
+      });
+      this.playerId = response.playerId;
+      this.roomId = response.roomId;
+      this.applyRoomState(response.state);
+    } catch (error) {
+      this.actionError = error instanceof Error ? error.message : 'Raumbeitritt fehlgeschlagen.';
+    } finally {
+      this.isBusy = false;
+    }
+  }
+
+  async onUpdateLobbySettings(): Promise<void> {
+    if (!this.roomState || !this.isHost) {
+      return;
+    }
+
+    this.actionError = '';
+    this.isBusy = true;
+
+    try {
+      await this.multiplayer.updateSettings({
+        roomId: this.roomState.id,
+        playerId: this.playerId,
+        settings: {
+          wordLength: this.settingsForm.wordLength,
+          maxGuesses: this.settingsForm.maxGuesses,
+          timeLimitSeconds: this.settingsForm.timeLimitSeconds,
+        },
+      });
+    } catch (error) {
+      this.actionError = error instanceof Error ? error.message : 'Einstellungen konnten nicht gespeichert werden.';
+    } finally {
+      this.isBusy = false;
+    }
+  }
+
+  async onStartRound(): Promise<void> {
+    if (!this.roomState || !this.isHost) {
+      return;
+    }
+
+    this.actionError = '';
+    this.isBusy = true;
+
+    try {
+      await this.multiplayer.startRound({ roomId: this.roomState.id, playerId: this.playerId });
+    } catch (error) {
+      this.actionError = error instanceof Error ? error.message : 'Runde konnte nicht gestartet werden.';
+    } finally {
+      this.isBusy = false;
+    }
+  }
+
+  async onSubmit(event: Event): Promise<void> {
+    event.preventDefault();
+    if (!this.roomState || !this.isGameInputEnabled) return;
+
+    const start = this.activeRow * this.currentWordLength;
+    const end = start + this.currentWordLength;
+
+    const rowInputs = this.letterInputs.toArray().slice(start, end);
+    if (rowInputs.some((input) => !input.nativeElement.value)) {
+      return;
+    }
+
+    const submittedText = rowInputs.map((input) => input.nativeElement.value).join('');
+
+    try {
+      const response = await this.multiplayer.submitGuess({
+        roomId: this.roomState.id,
+        playerId: this.playerId,
+        word: submittedText,
+      });
+
+      this.applyGuessResult(response.result, submittedText);
+
+      const solved = response.result.every((cell) => cell.state === 'correct');
+      if (solved) {
+        return;
+      }
+
+      if (this.activeRow + 1 >= this.currentMaxGuesses) {
+        return;
+      }
+
+      this.appendEmptyRow();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unbekannter Fehler.';
+      if (message.includes('allowed list')) {
+        this.showInvalidWordFeedback(rowInputs);
+        return;
+      }
+      this.actionError = message;
+    }
+  }
+
+  async onPlayAgain(): Promise<void> {
+    if (!this.roomState || !this.isHost) {
+      this.actionError = 'Nur der Host kann eine neue Runde starten.';
+      return;
+    }
+
+    this.actionError = '';
+
+    try {
+      await this.multiplayer.startNewGame({
+        roomId: this.roomState.id,
+        playerId: this.playerId,
+      });
+      this.showWinPopup = false;
+    } catch (error) {
+      this.actionError = error instanceof Error ? error.message : 'Neue Runde konnte nicht gestartet werden.';
+    }
+  }
+
+  onCloseWinPopup(): void {
+    this.showWinPopup = false;
+  }
+
+  async onNewGame(): Promise<void> {
+    if (this.roomState && this.isHost) {
+      await this.onPlayAgain();
+      return;
+    }
+
+    this.mode = 'entry';
+    this.roomId = '';
+    this.playerId = '';
+    this.roomState = null;
+    this.currentRoundId = '';
+    this.showWinPopup = false;
+    this.gameOver = false;
+    this.actionError = '';
+    this.serverError = '';
+    this.clearInvalidWordMessage();
+    this.resetRows(this.settingsForm.wordLength);
+  }
+
+  getProgressCells(playerId: PlayerId): ProgressCellState[] {
+    const progress = this.roomState?.playerProgress.find((entry) => entry.playerId === playerId);
+    if (!progress) {
+      return Array.from({ length: this.currentWordLength }, () => 'unset');
+    }
+    return progress.cells.map((cell) => cell.state);
+  }
+
+  isCurrentPlayer(playerId: PlayerId): boolean {
+    return playerId === this.playerId;
+  }
+
+  private applyRoomState(state: RoomStateSnapshot): void {
+    this.roomState = state;
+    this.roomId = state.id;
+    this.settingsForm.wordLength = state.settings.wordLength;
+    this.settingsForm.maxGuesses = state.settings.maxGuesses;
+    this.settingsForm.timeLimitSeconds = state.settings.timeLimitSeconds;
+
+    if (state.phase === 'lobby') {
+      this.mode = 'lobby';
+      this.showWinPopup = false;
+      this.gameOver = false;
+      this.clearTicker();
+      this.resetRows(state.settings.wordLength);
+      return;
+    }
+
+    this.mode = 'game';
+
+    if (this.currentRoundId !== state.round.id) {
+      this.currentRoundId = state.round.id;
+      this.resetRows(state.settings.wordLength);
+      this.showWinPopup = false;
+    }
+
+    if (state.phase === 'in-game' && state.round.status === 'running') {
+      this.startTicker();
+      this.gameOver = false;
+    }
+
+    if (state.phase === 'finished') {
+      this.gameOver = true;
+      this.clearTicker();
+      this.showWinPopup = true;
+      const winner = state.players.find((player) => player.id === state.round.winnerPlayerId);
+      if (winner) {
+        this.winMessage = `${winner.name} hat die Runde gewonnen.`;
+      } else if (state.round.status === 'timeout') {
+        this.winMessage = 'Zeit abgelaufen. Runde beendet.';
+      } else {
+        this.winMessage = 'Runde beendet.';
+      }
+    }
+
+    this.scheduleLayoutUpdate();
+  }
+
+  private applyGuessResult(result: GuessCell[], submittedText: string): void {
+    const row = this.rows[this.activeRow];
+    if (!row) {
+      return;
+    }
+
+    for (let index = 0; index < result.length; index++) {
+      row.cells[index].letter = this.normalizeInputLetter(submittedText[index] ?? '');
+      row.cells[index].state = result[index].state;
+    }
+
+    row.locked = true;
+  }
+
+  private appendEmptyRow(): void {
     this.rows.push({
       locked: false,
       enter: true,
-      cells: Array.from({ length: 5 }, () => ({ letter: '', state: 'unset' })),
+      cells: Array.from({ length: this.currentWordLength }, () => ({ letter: '', state: 'unset' })),
     });
     this.activeRow++;
 
@@ -245,13 +539,30 @@ export class OverviewComponent implements OnInit, AfterViewInit {
       if (newRow) newRow.enter = false;
     }, 320);
 
-    this.pendingFocusIndex = this.activeRow * 5;
+    this.pendingFocusIndex = this.activeRow * this.currentWordLength;
     setTimeout(() => {
       if (this.pendingFocusIndex !== null) {
         this.focusByIndex(this.pendingFocusIndex);
         this.pendingFocusIndex = null;
       }
       this.scrollToBottomIfNeeded();
+      this.scheduleLayoutUpdate();
+    }, 0);
+  }
+
+  private resetRows(wordLength: number): void {
+    this.rows = [
+      {
+        locked: false,
+        cells: Array.from({ length: wordLength }, () => ({ letter: '', state: 'unset' })),
+      },
+    ];
+    this.activeRow = 0;
+    this.baseWordleHeight = 0;
+
+    this.pendingFocusIndex = 0;
+    setTimeout(() => {
+      this.focusByIndex(0);
       this.scheduleLayoutUpdate();
     }, 0);
   }
@@ -263,100 +574,25 @@ export class OverviewComponent implements OnInit, AfterViewInit {
   private scrollToBottomIfNeeded(): void {
     const container = this.lettersContainer?.nativeElement;
     if (!container) return;
-    const scrollTarget = container.querySelector<HTMLElement>('.simplebar-content-wrapper') ?? container;
-    if (scrollTarget.scrollHeight <= scrollTarget.clientHeight) return;
-    scrollTarget.scrollTop = scrollTarget.scrollHeight;
-  }
-
-  private resetGame(): void {
-    this.rows = [{ locked: false, cells: Array.from({ length: 5 }, () => ({ letter: '', state: 'unset' })) }];
-    this.activeRow = 0;
-    this.submittedText = '';
-    this.gameOver = false;
-    this.showWinPopup = false;
-    this.winTries = 0;
-    this.clearInvalidWordMessage();
-
-    this.pickRandomTargetWord();
-
-    this.pendingFocusIndex = 0;
-    setTimeout(() => {
-      this.focusByIndex(0);
-      this.scheduleLayoutUpdate();
-    }, 0);
-  }
-
-  onPlayAgain(): void {
-    this.resetGame();
-  }
-
-  onCloseWinPopup(): void {
-    this.showWinPopup = false;
-  }
-
-  onNewGame(): void {
-    this.resetGame();
-  }
-
-  private pickRandomTargetWord(): void {
-    const length = this.getCurrentWordLength();
-    const words = this.targetWordsByLength.get(length) ?? [];
-    if (!words.length) {
-      this.targetWord = '';
-      return;
-    }
-    const index = Math.floor(Math.random() * words.length);
-    this.targetWord = words[index];
-  }
-
-  private getCurrentWordLength(): number {
-    return this.rows[0]?.cells.length ?? 5;
-  }
-
-  private indexTargetWords(words: string[]): void {
-    this.targetWordsByLength.clear();
-    for (const word of words) {
-      const length = word.length;
-      const bucket = this.targetWordsByLength.get(length) ?? [];
-      bucket.push(word);
-      this.targetWordsByLength.set(length, bucket);
-    }
-  }
-
-  private indexAllowedWords(words: string[]): void {
-    this.allowedWordsByLength.clear();
-    for (const word of words) {
-      const length = word.length;
-      const normalized = word.toLocaleLowerCase('de-DE');
-      const bucket = this.allowedWordsByLength.get(length) ?? new Set<string>();
-      bucket.add(normalized);
-      this.allowedWordsByLength.set(length, bucket);
-    }
-  }
-
-  private isAllowedWord(word: string): boolean {
-    const length = word.length;
-    const bucket = this.allowedWordsByLength.get(length);
-    if (!bucket) return false;
-    return bucket.has(word.toLocaleLowerCase('de-DE'));
+    if (container.scrollHeight <= container.clientHeight) return;
+    container.scrollTop = container.scrollHeight;
   }
 
   private showInvalidWordFeedback(rowInputs: ElementRef<HTMLInputElement>[]): void {
     const row = this.rows[this.activeRow];
     if (!row) return;
 
-    const message = 'Kein gueltiges Wort.';
     this.clearInvalidWordMessage();
     this.clearRowError();
     this.errorRowIndex = this.activeRow;
     row.error = true;
     this.triggerRowShake(row);
-    this.invalidWordMessage = message;
-    this.invalidWordVisible = false;
+    this.invalidWordMessage = 'Kein gueltiges Wort.';
 
     if (this.invalidWordShowTimeout) {
       clearTimeout(this.invalidWordShowTimeout);
     }
+
     this.invalidWordShowTimeout = setTimeout(() => {
       this.invalidWordVisible = true;
       this.scheduleLayoutUpdate();
@@ -369,6 +605,7 @@ export class OverviewComponent implements OnInit, AfterViewInit {
     if (this.invalidWordTimeout) {
       clearTimeout(this.invalidWordTimeout);
     }
+
     this.invalidWordTimeout = setTimeout(() => {
       this.invalidWordMessage = '';
       this.invalidWordVisible = false;
@@ -388,7 +625,6 @@ export class OverviewComponent implements OnInit, AfterViewInit {
   }
 
   private clearInvalidWordMessage(): void {
-    const hadVisibleError = this.invalidWordVisible || !!this.invalidWordMessage || this.errorRowIndex !== null;
     if (this.invalidWordTimeout) {
       clearTimeout(this.invalidWordTimeout);
       this.invalidWordTimeout = null;
@@ -397,12 +633,10 @@ export class OverviewComponent implements OnInit, AfterViewInit {
       clearTimeout(this.invalidWordShowTimeout);
       this.invalidWordShowTimeout = null;
     }
+
     this.invalidWordMessage = '';
     this.invalidWordVisible = false;
     this.clearRowError();
-    if (hadVisibleError) {
-      this.scheduleLayoutUpdate();
-    }
   }
 
   private clearRowError(): void {
@@ -416,11 +650,6 @@ export class OverviewComponent implements OnInit, AfterViewInit {
   }
 
   private normalizeInputLetter(letter: string): string {
-    if (letter === 'ß' || letter === 'ẞ') return 'ß';
-    return letter.toLocaleUpperCase('de-DE');
-  }
-
-  private normalizeKeyLetter(letter: string): string {
     if (letter === 'ß' || letter === 'ẞ') return 'ß';
     return letter.toLocaleUpperCase('de-DE');
   }
@@ -479,5 +708,48 @@ export class OverviewComponent implements OnInit, AfterViewInit {
 
     const maxHeight = stageHeight - keyboardHeight - this.rowToKeyboardGap - this.topOffset;
     this.wordleMaxHeight = Math.max(60, Math.floor(maxHeight));
+  }
+
+  private startTicker(): void {
+    if (this.tickerInterval) {
+      return;
+    }
+
+    this.tickerInterval = setInterval(() => {
+      this.nowTimestamp = Date.now();
+      this.cdr.detectChanges();
+    }, 500);
+  }
+
+  private clearTicker(): void {
+    if (!this.tickerInterval) {
+      return;
+    }
+
+    clearInterval(this.tickerInterval);
+    this.tickerInterval = null;
+  }
+
+  private clearTransientTimers(): void {
+    if (this.invalidWordTimeout) {
+      clearTimeout(this.invalidWordTimeout);
+      this.invalidWordTimeout = null;
+    }
+    if (this.invalidWordShowTimeout) {
+      clearTimeout(this.invalidWordShowTimeout);
+      this.invalidWordShowTimeout = null;
+    }
+    if (this.rowShakeStartTimeout) {
+      clearTimeout(this.rowShakeStartTimeout);
+      this.rowShakeStartTimeout = null;
+    }
+    if (this.rowShakeEndTimeout) {
+      clearTimeout(this.rowShakeEndTimeout);
+      this.rowShakeEndTimeout = null;
+    }
+    if (this.layoutRaf !== null) {
+      cancelAnimationFrame(this.layoutRaf);
+      this.layoutRaf = null;
+    }
   }
 }
