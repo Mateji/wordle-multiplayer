@@ -76,6 +76,8 @@
 .entry-card h1 {
   margin: 0;
   font-size: 30px;
+  font-family: var(--punk-font-display, Impact, sans-serif);
+  letter-spacing: 0.03em;
 }
 
 .hint {
@@ -96,6 +98,28 @@
   background: #fbfdff;
   display: grid;
   gap: 10px;
+}
+
+.entry-card.punk-card,
+.lobby-card.punk-card {
+  background: #fffdf7;
+}
+
+.entry-card .entry-box.punk-card,
+.lobby-card .lobby-grid > .punk-card {
+  background: #fffdf9;
+  padding: 14px;
+}
+
+.entry-card .entry-box.punk-card h2,
+.lobby-card .lobby-grid > .punk-card h3 {
+  font-family: var(--punk-font-display, Impact, sans-serif);
+  letter-spacing: 0.04em;
+}
+
+.entry-card .hint,
+.lobby-card .hint {
+  color: #48535f;
 }
 
 label {
@@ -435,7 +459,7 @@ form {
   border: 1px solid rgba(20, 20, 20, 0.06);
 }
 
-.popup h2 {
+.popup #win-title {
   margin: 0 0 10px;
   font-size: 26px;
   color: #15181c;

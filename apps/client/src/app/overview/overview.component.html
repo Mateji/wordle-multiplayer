@@ -1,62 +1,74 @@
-<div class="container">
+<div class="container punk-page">
   <div class="topbar" role="toolbar" aria-label="Actions">
     <button type="button" class="new-game" (click)="onNewGame()">Neues Spiel</button>
   </div>
 
-  <main class="stage">
+  <main class="stage punk-stage">
     @if (mode === 'entry') {
-      <section class="entry-card">
+      <section class="entry-card punk-card punk-card-magenta halftone-overlay">
+        <span class="tape-accent" aria-hidden="true"></span>
+        <span class="graffiti-label" aria-hidden="true">Entry</span>
         <h1>Mehrspieler Wordle</h1>
         <p class="hint">Raum erstellen oder mit Shortcode beitreten.</p>
 
         <label>
           Spielername
-          <input type="text" [(ngModel)]="playerName" maxlength="20" placeholder="Dein Name" />
+          <input class="punk-input" type="text" [(ngModel)]="playerName" maxlength="20" placeholder="Dein Name" />
         </label>
 
         <div class="entry-grid">
-          <article class="entry-box">
+          <article class="entry-box punk-card punk-card-cyan halftone-overlay">
             <h2>Raum erstellen</h2>
             <label>
               Buchstaben
-              <input type="number" min="4" max="12" [(ngModel)]="settingsForm.wordLength" />
+              <input class="punk-input" type="number" min="4" max="12" [(ngModel)]="settingsForm.wordLength" />
             </label>
             <label>
               Zeitlimit (Sek.)
-              <input type="number" min="30" max="900" [(ngModel)]="settingsForm.timeLimitSeconds" />
+              <input class="punk-input" type="number" min="30" max="900" [(ngModel)]="settingsForm.timeLimitSeconds" />
             </label>
-            <button type="button" (click)="onCreateRoom()" [disabled]="isBusy">Raum erstellen</button>
+            <button class="punk-button" type="button" (click)="onCreateRoom()" [disabled]="isBusy">Raum erstellen</button>
           </article>
 
-          <article class="entry-box">
+          <article class="entry-box punk-card punk-card-lime halftone-overlay">
             <h2>Raum beitreten</h2>
             <label>
               Shortcode
-              <input type="text" [(ngModel)]="joinCode" maxlength="8" placeholder="z.B. 4H7KQ2" />
+              <input class="punk-input" type="text" [(ngModel)]="joinCode" maxlength="8" placeholder="z.B. 4H7KQ2" />
             </label>
-            <button type="button" (click)="onJoinRoom()" [disabled]="isBusy">Beitreten</button>
+            <button class="punk-button" type="button" (click)="onJoinRoom()" [disabled]="isBusy">Beitreten</button>
           </article>
         </div>
       </section>
     }
 
     @if (mode === 'lobby' && roomState) {
-      <section class="lobby-card">
+      <section class="lobby-card punk-card punk-card-lime halftone-overlay">
+        <span class="tape-accent" aria-hidden="true"></span>
+        <span class="graffiti-label" aria-hidden="true">Lobby</span>
         <header class="lobby-header">
           <h2>Lobby</h2>
           <div class="room-code">Raumcode: <strong>{{ roomState.id }}</strong></div>
         </header>
 
         <div class="lobby-grid">
-          <article>
+          <article class="punk-card punk-card-cyan halftone-overlay">
             <h3>Einstellungen</h3>
             <label>
               Buchstaben
-              <input type="number" min="4" max="12" [(ngModel)]="settingsForm.wordLength" [disabled]="!isHost || isBusy" />
+              <input
+                class="punk-input"
+                type="number"
+                min="4"
+                max="12"
+                [(ngModel)]="settingsForm.wordLength"
+                [disabled]="!isHost || isBusy"
+              />
             </label>
             <label>
               Zeitlimit (Sek.)
               <input
+                class="punk-input"
                 type="number"
                 min="30"
                 max="900"
@@ -66,19 +78,28 @@
             </label>
             <label>
               Versuche
-              <input type="number" min="1" max="10" [(ngModel)]="settingsForm.maxGuesses" [disabled]="!isHost || isBusy" />
+              <input
+                class="punk-input"
+                type="number"
+                min="1"
+                max="10"
+                [(ngModel)]="settingsForm.maxGuesses"
+                [disabled]="!isHost || isBusy"
+              />
             </label>
             @if (isHost) {
               <div class="lobby-actions">
-                <button type="button" (click)="onUpdateLobbySettings()" [disabled]="isBusy">Einstellungen speichern</button>
-                <button type="button" (click)="onStartRound()" [disabled]="isBusy">Runde starten</button>
+                <button class="punk-button" type="button" (click)="onUpdateLobbySettings()" [disabled]="isBusy">
+                  Einstellungen speichern
+                </button>
+                <button class="punk-button" type="button" (click)="onStartRound()" [disabled]="isBusy">Runde starten</button>
               </div>
             } @else {
               <p class="hint">Nur der Host kann Einstellungen aendern und die Runde starten.</p>
             }
           </article>
 
-          <article>
+          <article class="punk-card punk-card-magenta halftone-overlay">
             <h3>Spieler</h3>
             <ul class="player-list">
               @for (player of playerList; track player.id) {
