@@ -82,6 +82,9 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private rowShakeEndTimeout: ReturnType<typeof setTimeout> | null = null;
   private tickerInterval: ReturnType<typeof setInterval> | null = null;
   private currentRoundId = '';
+  private readonly progressFlashDurationMs = 720;
+  private readonly progressFlashingCells = new Set<string>();
+  private readonly progressFlashTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
   ngOnInit(): void {
     this.resetRows(this.settingsForm.wordLength);
@@ -127,7 +130,11 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.isGameInputEnabled) return;
 
     const target = event.target as HTMLElement | null;
-    if (target?.closest('input.letter')) return;
+    const isLetterInputTarget = !!target?.closest('input.letter');
+    const isOtherEditableTarget =
+      !!target?.closest('input, textarea, select') || target?.isContentEditable === true;
+
+    if (!isLetterInputTarget && isOtherEditableTarget) return;
 
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
@@ -451,6 +458,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.actionError = '';
     this.serverError = '';
     this.clearInvalidWordMessage();
+    this.clearProgressFlashes();
     this.resetRows(this.settingsForm.wordLength);
   }
 
@@ -466,17 +474,25 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     return playerId === this.playerId;
   }
 
+  isProgressCellFlashing(playerId: PlayerId, index: number): boolean {
+    return this.progressFlashingCells.has(this.progressCellKey(playerId, index));
+  }
+
   private applyRoomState(state: RoomStateSnapshot): void {
+    const previousState = this.roomState;
     this.roomState = state;
     this.roomId = state.id;
     this.settingsForm.wordLength = state.settings.wordLength;
     this.settingsForm.maxGuesses = state.settings.maxGuesses;
     this.settingsForm.timeLimitSeconds = state.settings.timeLimitSeconds;
 
+    this.detectProgressFlashes(previousState, state);
+
     if (state.phase === 'lobby') {
       this.mode = 'lobby';
       this.showWinPopup = false;
       this.gameOver = false;
+      this.clearProgressFlashes();
       this.clearTicker();
       this.resetRows(state.settings.wordLength);
       return;
@@ -488,6 +504,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       this.currentRoundId = state.round.id;
       this.resetRows(state.settings.wordLength);
       this.showWinPopup = false;
+      this.clearProgressFlashes();
     }
 
     if (state.phase === 'in-game' && state.round.status === 'running') {
@@ -751,5 +768,65 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       cancelAnimationFrame(this.layoutRaf);
       this.layoutRaf = null;
     }
+    this.clearProgressFlashes();
+  }
+
+  private detectProgressFlashes(previousState: RoomStateSnapshot | null, nextState: RoomStateSnapshot): void {
+    if (!previousState) {
+      return;
+    }
+
+    if (previousState.id !== nextState.id || previousState.round.id !== nextState.round.id) {
+      return;
+    }
+
+    const previousProgressByPlayer = new Map(previousState.playerProgress.map((entry) => [entry.playerId, entry.cells]));
+
+    for (const nextProgress of nextState.playerProgress) {
+      const previousCells = previousProgressByPlayer.get(nextProgress.playerId);
+      if (!previousCells) {
+        continue;
+      }
+
+      for (let index = 0; index < nextProgress.cells.length; index++) {
+        const previous = previousCells[index]?.state ?? 'unset';
+        const current = nextProgress.cells[index]?.state ?? 'unset';
+
+        const becameDiscovered = (current === 'present' || current === 'correct') && current !== previous;
+        if (becameDiscovered) {
+          this.flashProgressCell(nextProgress.playerId, index);
+        }
+      }
+    }
+  }
+
+  private flashProgressCell(playerId: PlayerId, index: number): void {
+    const key = this.progressCellKey(playerId, index);
+    const existingTimeout = this.progressFlashTimeouts.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    this.progressFlashingCells.add(key);
+
+    const timeout = setTimeout(() => {
+      this.progressFlashingCells.delete(key);
+      this.progressFlashTimeouts.delete(key);
+      this.cdr.detectChanges();
+    }, this.progressFlashDurationMs);
+
+    this.progressFlashTimeouts.set(key, timeout);
+  }
+
+  private clearProgressFlashes(): void {
+    for (const timeout of this.progressFlashTimeouts.values()) {
+      clearTimeout(timeout);
+    }
+    this.progressFlashTimeouts.clear();
+    this.progressFlashingCells.clear();
+  }
+
+  private progressCellKey(playerId: PlayerId, index: number): string {
+    return `${playerId}:${index}`;
   }
 }

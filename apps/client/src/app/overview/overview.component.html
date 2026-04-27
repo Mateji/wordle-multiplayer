@@ -107,6 +107,7 @@
                     [class.state-unset]="cellState === 'unset'"
                     [class.state-present]="cellState === 'present'"
                     [class.state-correct]="cellState === 'correct'"
+                    [class.progress-flash]="isProgressCellFlashing(player.id, $index)"
                   ></span>
                 }
               </div>
