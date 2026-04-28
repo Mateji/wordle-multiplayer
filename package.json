@@ -8,6 +8,7 @@
     "dev:server": "pnpm --filter @wordle/server dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "test:client": "pnpm --filter @wordle/client test:ci",
     "lint": "biome lint apps/client apps/server packages/shared",
     "lint:fix": "biome lint --write apps/client apps/server packages/shared",
     "format": "biome format --write apps/client apps/server packages/shared",

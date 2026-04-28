@@ -91,6 +91,46 @@
   gap: 14px;
 }
 
+.entry-name-card {
+  margin-top: 14px;
+  padding: 14px;
+  background: #fffdf9;
+}
+
+.entry-name-label {
+  margin: 0;
+}
+
+.entry-arrows {
+  margin-top: 6px;
+  height: 56px;
+  position: relative;
+  pointer-events: none;
+}
+
+.entry-arrow {
+  position: absolute;
+  top: 0;
+  width: 46%;
+  height: 56px;
+  fill: none;
+  stroke: #131217;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.7));
+}
+
+.entry-arrow-left {
+  left: 2%;
+  transform: rotate(-5deg);
+}
+
+.entry-arrow-right {
+  right: 2%;
+  transform: rotate(5deg);
+}
+
 .entry-box {
   border: 1px solid #e6ebf1;
   border-radius: 14px;
@@ -115,6 +155,11 @@
 .lobby-card .lobby-grid > .punk-card h3 {
   font-family: var(--punk-font-display, Impact, sans-serif);
   letter-spacing: 0.04em;
+}
+
+.entry-card .entry-box.punk-card h2 {
+  font-size: 34px;
+  line-height: 0.95;
 }
 
 .entry-card .hint,
@@ -506,6 +551,10 @@ form {
 }
 
 @media (max-width: 920px) {
+  .entry-arrows {
+    display: none;
+  }
+
   .game-shell {
     grid-template-columns: 1fr;
   }

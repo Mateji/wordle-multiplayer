@@ -134,7 +134,17 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     const isOtherEditableTarget =
       !!target?.closest('input, textarea, select') || target?.isContentEditable === true;
 
-    if (!isLetterInputTarget && isOtherEditableTarget) return;
+    // Letter inputs are managed by SingleLetterDirective.
+    // Handle only Enter here to keep keyboard submit behavior.
+    if (isLetterInputTarget) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        this.onKeyboardKey('Enter');
+      }
+      return;
+    }
+
+    if (isOtherEditableTarget) return;
 
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 

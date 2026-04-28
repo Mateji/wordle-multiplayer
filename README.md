@@ -57,3 +57,10 @@ Run all tests:
 ```bash
 pnpm test
 ```
+
+
+
+## Todos
+- Define Host/Join privileges like start new game, kick, and change host
+- Reconnect Handling after disconnect
+- add copy room code button

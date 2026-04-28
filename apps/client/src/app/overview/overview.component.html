@@ -7,18 +7,33 @@
     @if (mode === 'entry') {
       <section class="entry-card punk-card punk-card-magenta halftone-overlay">
         <span class="tape-accent" aria-hidden="true"></span>
-        <span class="graffiti-label" aria-hidden="true">Entry</span>
         <h1>Mehrspieler Wordle</h1>
         <p class="hint">Raum erstellen oder mit Shortcode beitreten.</p>
 
-        <label>
-          Spielername
-          <input class="punk-input" type="text" [(ngModel)]="playerName" maxlength="20" placeholder="Dein Name" />
-        </label>
+        <article class="entry-name-card punk-card punk-card-cyan halftone-overlay">
+          <span class="graffiti-label" aria-hidden="true">DEIN TAG</span>
+          <label class="entry-name-label">
+            Spielername
+            <input class="punk-input" type="text" [(ngModel)]="playerName" maxlength="20" placeholder="Dein Name" />
+          </label>
+        </article>
+
+        <div class="entry-arrows" aria-hidden="true">
+          <svg class="entry-arrow entry-arrow-left" viewBox="0 0 160 80" focusable="false">
+            <title>Dekorativer Pfeil links</title>
+            <path d="M8 8 C 60 8, 38 62, 78 62" />
+            <path d="M68 54 L 78 62 L 68 70" />
+          </svg>
+          <svg class="entry-arrow entry-arrow-right" viewBox="0 0 160 80" focusable="false">
+            <title>Dekorativer Pfeil rechts</title>
+            <path d="M152 8 C 100 8, 122 62, 82 62" />
+            <path d="M92 54 L 82 62 L 92 70" />
+          </svg>
+        </div>
 
         <div class="entry-grid">
-          <article class="entry-box punk-card punk-card-cyan halftone-overlay">
-            <h2>Raum erstellen</h2>
+          <article class="entry-box punk-card punk-card-lime halftone-overlay">
+            <h2>RAUM ERSTELLEN</h2>
             <label>
               Buchstaben
               <input class="punk-input" type="number" min="4" max="12" [(ngModel)]="settingsForm.wordLength" />
@@ -30,8 +45,8 @@
             <button class="punk-button" type="button" (click)="onCreateRoom()" [disabled]="isBusy">Raum erstellen</button>
           </article>
 
-          <article class="entry-box punk-card punk-card-lime halftone-overlay">
-            <h2>Raum beitreten</h2>
+          <article class="entry-box punk-card punk-card-cyan halftone-overlay">
+            <h2>RAUM BEITRETEN</h2>
             <label>
               Shortcode
               <input class="punk-input" type="text" [(ngModel)]="joinCode" maxlength="8" placeholder="z.B. 4H7KQ2" />
