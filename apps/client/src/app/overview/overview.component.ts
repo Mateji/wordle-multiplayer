@@ -7,32 +7,33 @@ import {
   inject,
   OnDestroy,
   OnInit,
-  QueryList,
   ViewChild,
-  ViewChildren,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import type { GuessCell, PlayerId, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
 import { Subscription } from 'rxjs';
-import { SingleLetterDirective } from '../directives/single-letter-directive';
-import { KeyboardComponent } from '../keyboard/keyboard.component';
 import type { LetterState, Row } from '../models';
 import { MultiplayerService } from '../services/multiplayer.service';
+import { EntryScreenComponent } from './entry-screen.component';
+import { GameScreenComponent } from './game-screen.component';
+import { LobbyScreenComponent } from './lobby-screen.component';
 
 type ViewMode = 'entry' | 'lobby' | 'game';
 
 @Component({
   selector: 'app-overview',
-  imports: [FormsModule, SingleLetterDirective, KeyboardComponent],
+  imports: [EntryScreenComponent, LobbyScreenComponent, GameScreenComponent],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.css',
 })
 export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('gameForm') gameForm?: ElementRef<HTMLElement>;
-  @ViewChild('lettersContainer') lettersContainer?: ElementRef<HTMLElement>;
-  @ViewChild('letterRows') letterRows?: ElementRef<HTMLElement>;
-  @ViewChild('keyboardHost', { read: ElementRef }) keyboardHost?: ElementRef<HTMLElement>;
-  @ViewChildren('letterInput') letterInputs!: QueryList<ElementRef<HTMLInputElement>>;
+  @ViewChild(GameScreenComponent)
+  set gameScreenComponent(component: GameScreenComponent | undefined) {
+    this.gameScreen = component;
+    this.bindLetterInputChanges();
+    if (component) {
+      this.scheduleLayoutUpdate();
+    }
+  }
 
   mode: ViewMode = 'entry';
 
@@ -49,7 +50,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   settingsForm = {
     wordLength: 5,
     maxGuesses: 6,
-    timeLimitSeconds: 120,
+    timeLimitSeconds: 0,
   };
 
   rows: Row[] = [];
@@ -85,6 +86,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly progressFlashDurationMs = 720;
   private readonly progressFlashingCells = new Set<string>();
   private readonly progressFlashTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  private gameScreen?: GameScreenComponent;
+  private letterInputChangesSubscription: Subscription | null = null;
 
   ngOnInit(): void {
     this.resetRows(this.settingsForm.wordLength);
@@ -106,16 +109,13 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    this.letterInputs.changes.subscribe(() => {
-      if (this.pendingFocusIndex === null) return;
-      this.focusByIndex(this.pendingFocusIndex);
-      this.pendingFocusIndex = null;
-      this.scheduleLayoutUpdate();
-    });
+    this.bindLetterInputChanges();
   }
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
+    this.letterInputChangesSubscription?.unsubscribe();
+    this.letterInputChangesSubscription = null;
     this.clearTransientTimers();
     this.clearTicker();
   }
@@ -211,6 +211,10 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get timeRemainingLabel(): string {
+    if (this.roomState?.phase === 'in-game' && this.roomState.settings.timeLimitSeconds === 0) {
+      return 'Ohne Limit';
+    }
+
     const endsAt = this.roomState?.round.endsAt;
     if (!endsAt || this.roomState?.phase !== 'in-game') {
       return '--:--';
@@ -253,7 +257,10 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const start = this.activeRow * this.currentWordLength;
     const end = start + this.currentWordLength;
-    const rowInputs = this.letterInputs.toArray().slice(start, end);
+    const rowInputs = this.gameScreen?.letterInputs?.toArray().slice(start, end) ?? [];
+    if (!rowInputs.length) {
+      return;
+    }
 
     if (key === 'Backspace') {
       const lastFilledIndex = [...rowInputs]
@@ -393,7 +400,11 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     const start = this.activeRow * this.currentWordLength;
     const end = start + this.currentWordLength;
 
-    const rowInputs = this.letterInputs.toArray().slice(start, end);
+    const rowInputs = this.gameScreen?.letterInputs?.toArray().slice(start, end) ?? [];
+    if (!rowInputs.length) {
+      return;
+    }
+
     if (rowInputs.some((input) => !input.nativeElement.value)) {
       return;
     }
@@ -595,14 +606,31 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private focusByIndex(index: number): void {
-    this.letterInputs.get(index)?.nativeElement.focus();
+    this.gameScreen?.letterInputs?.get(index)?.nativeElement.focus();
   }
 
   private scrollToBottomIfNeeded(): void {
-    const container = this.lettersContainer?.nativeElement;
+    const container = this.gameScreen?.lettersContainer?.nativeElement;
     if (!container) return;
     if (container.scrollHeight <= container.clientHeight) return;
     container.scrollTop = container.scrollHeight;
+  }
+
+  private bindLetterInputChanges(): void {
+    this.letterInputChangesSubscription?.unsubscribe();
+    this.letterInputChangesSubscription = null;
+
+    const letterInputs = this.gameScreen?.letterInputs;
+    if (!letterInputs) {
+      return;
+    }
+
+    this.letterInputChangesSubscription = letterInputs.changes.subscribe(() => {
+      if (this.pendingFocusIndex === null) return;
+      this.focusByIndex(this.pendingFocusIndex);
+      this.pendingFocusIndex = null;
+      this.scheduleLayoutUpdate();
+    });
   }
 
   private showInvalidWordFeedback(rowInputs: ElementRef<HTMLInputElement>[]): void {
@@ -712,13 +740,13 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateDynamicLayout(): void {
-    const form = this.gameForm?.nativeElement;
-    const keyboard = this.keyboardHost?.nativeElement;
-    const rows = this.letterRows?.nativeElement;
+    const form = this.gameScreen?.gameForm?.nativeElement;
+    const keyboard = this.gameScreen?.keyboardHost?.nativeElement;
+    const rows = this.gameScreen?.letterRows?.nativeElement;
     if (!form || !keyboard || !rows) return;
 
     const stageHeight = form.clientHeight;
-    const keyboardHeight = keyboard.getBoundingClientRect().height;
+    const keyboardHeight = keyboard.offsetHeight;
     const naturalWordleHeight = rows.scrollHeight + 12;
 
     if (this.baseWordleHeight === 0) {
@@ -734,7 +762,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.topOffset = Math.max(0, initialTopOffset - growth);
 
     const maxHeight = stageHeight - keyboardHeight - this.rowToKeyboardGap - this.topOffset;
-    this.wordleMaxHeight = Math.max(60, Math.floor(maxHeight));
+    this.wordleMaxHeight = Math.max(60, Math.ceil(maxHeight) + 4);
   }
 
   private startTicker(): void {

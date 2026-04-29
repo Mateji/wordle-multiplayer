@@ -1,28 +1,30 @@
-import cors from 'cors';
-import express from 'express';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import cors from 'cors';
+import express from 'express';
 import { Server } from 'socket.io';
 const DEFAULT_SETTINGS = {
     wordLength: 5,
     maxGuesses: 6,
-    timeLimitSeconds: 120,
+    timeLimitSeconds: 0,
     language: 'de',
 };
+const MIN_WORD_LENGTH = 3;
+const MAX_WORD_LENGTH = 7;
 const MIN_MAX_GUESSES = 1;
 const MAX_MAX_GUESSES = 10;
-const MIN_TIME_LIMIT_SECONDS = 30;
-const MAX_TIME_LIMIT_SECONDS = 900;
+const ALLOWED_TIME_LIMITS_SECONDS = new Set([0, 60, 120, 180, 240, 300]);
+const SUPPORTED_WORD_LENGTHS = [3, 4, 5, 6, 7];
 const rooms = new Map();
 const roomTimers = new Map();
 const socketSessions = new Map();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const assetsDir = path.resolve(__dirname, '../../client/src/assets');
-const targetWordsByLength = buildWordIndex(loadWordList(path.resolve(assetsDir, 'target-words.json')));
-const allowedWordsByLength = buildAllowedWordIndex(loadWordList(path.resolve(assetsDir, 'allowed-words.json')));
+const targetWordsByLength = loadTargetWordsByLength();
+const allowedWordsByLength = loadAllowedWordsByLength();
 const availableWordLengths = new Set(targetWordsByLength.keys());
 const app = express();
 app.use(cors());
@@ -292,21 +294,21 @@ function loadWordList(filePath) {
         .map((entry) => (typeof entry === 'string' ? entry.trim().toLocaleLowerCase('de-DE') : ''))
         .filter((entry) => entry.length > 0);
 }
-function buildWordIndex(words) {
+function loadTargetWordsByLength() {
     const index = new Map();
-    for (const word of words) {
-        const bucket = index.get(word.length) ?? [];
-        bucket.push(word);
-        index.set(word.length, bucket);
+    for (const length of SUPPORTED_WORD_LENGTHS) {
+        const filePath = path.resolve(assetsDir, `target-words-${length}.json`);
+        const words = loadWordList(filePath).filter((word) => word.length === length);
+        index.set(length, words);
     }
     return index;
 }
-function buildAllowedWordIndex(words) {
+function loadAllowedWordsByLength() {
     const index = new Map();
-    for (const word of words) {
-        const bucket = index.get(word.length) ?? new Set();
-        bucket.add(word);
-        index.set(word.length, bucket);
+    for (const length of SUPPORTED_WORD_LENGTHS) {
+        const filePath = path.resolve(assetsDir, `allowed-words-${length}.json`);
+        const words = loadWordList(filePath).filter((word) => word.length === length);
+        index.set(length, new Set(words));
     }
     return index;
 }
@@ -329,10 +331,14 @@ function isAllowedWord(word, length) {
     return bucket.has(word);
 }
 function sanitizeSettings(settings, base) {
-    const nextWordLength = toFiniteInteger(settings?.wordLength, base.wordLength);
+    const nextWordLength = clamp(toFiniteInteger(settings?.wordLength, base.wordLength), MIN_WORD_LENGTH, MAX_WORD_LENGTH);
     const nextMaxGuesses = clamp(toFiniteInteger(settings?.maxGuesses, base.maxGuesses), MIN_MAX_GUESSES, MAX_MAX_GUESSES);
-    const nextTimeLimit = clamp(toFiniteInteger(settings?.timeLimitSeconds, base.timeLimitSeconds), MIN_TIME_LIMIT_SECONDS, MAX_TIME_LIMIT_SECONDS);
-    const supportedWordLength = hasWordsForLength(nextWordLength) ? nextWordLength : base.wordLength;
+    const requestedTimeLimit = toFiniteInteger(settings?.timeLimitSeconds, base.timeLimitSeconds);
+    const nextTimeLimit = ALLOWED_TIME_LIMITS_SECONDS.has(requestedTimeLimit)
+        ? requestedTimeLimit
+        : base.timeLimitSeconds;
+    const fallbackWordLength = hasWordsForLength(base.wordLength) ? base.wordLength : DEFAULT_SETTINGS.wordLength;
+    const supportedWordLength = hasWordsForLength(nextWordLength) ? nextWordLength : fallbackWordLength;
     return {
         wordLength: supportedWordLength,
         maxGuesses: nextMaxGuesses,
@@ -358,30 +364,33 @@ function clamp(value, min, max) {
 function startRound(room) {
     clearRoomTimer(room.id);
     const now = Date.now();
+    const hasTimeLimit = room.settings.timeLimitSeconds > 0;
     room.phase = 'in-game';
     room.round = {
         id: randomId('round'),
         status: 'running',
         startedAt: now,
-        endsAt: now + room.settings.timeLimitSeconds * 1000,
+        endsAt: hasTimeLimit ? now + room.settings.timeLimitSeconds * 1000 : null,
         winnerPlayerId: null,
     };
     room.playerProgress = room.players.map((player) => emptyProgress(player.id, room.settings.wordLength));
     room.guesses = [];
     room.secretWord = randomTargetWord(room.settings.wordLength);
     room.updatedAt = now;
-    const timeout = setTimeout(() => {
-        const activeRoom = rooms.get(room.id);
-        if (!activeRoom) {
-            return;
-        }
-        if (activeRoom.phase !== 'in-game' || activeRoom.round.status !== 'running') {
-            return;
-        }
-        finishRound(activeRoom, 'timeout', null);
-        io.to(activeRoom.id).emit('room:state', publicState(activeRoom));
-    }, room.settings.timeLimitSeconds * 1000);
-    roomTimers.set(room.id, timeout);
+    if (hasTimeLimit) {
+        const timeout = setTimeout(() => {
+            const activeRoom = rooms.get(room.id);
+            if (!activeRoom) {
+                return;
+            }
+            if (activeRoom.phase !== 'in-game' || activeRoom.round.status !== 'running') {
+                return;
+            }
+            finishRound(activeRoom, 'timeout', null);
+            io.to(activeRoom.id).emit('room:state', publicState(activeRoom));
+        }, room.settings.timeLimitSeconds * 1000);
+        roomTimers.set(room.id, timeout);
+    }
 }
 function finishRound(room, status, winnerPlayerId) {
     clearRoomTimer(room.id);

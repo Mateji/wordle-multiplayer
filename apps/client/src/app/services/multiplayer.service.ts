@@ -24,6 +24,7 @@ type GuessSubmitResponse = { state: RoomStateSnapshot; result: GuessCell[] };
 })
 export class MultiplayerService {
   private readonly socket: Socket<ServerToClientEvents, ClientToServerEvents>;
+  private connectPromise: Promise<void> | null = null;
 
   private readonly roomStateSubject = new BehaviorSubject<RoomStateSnapshot | null>(null);
   private readonly serverErrorSubject = new BehaviorSubject<string>('');
@@ -33,8 +34,8 @@ export class MultiplayerService {
 
   constructor() {
     this.socket = io(this.getServerUrl(), {
-      transports: ['websocket'],
-      autoConnect: true,
+      autoConnect: false,
+      timeout: 5000,
     });
 
     this.socket.on('room:state', (state) => {
@@ -97,22 +98,77 @@ export class MultiplayerService {
     event: E,
     payload: Parameters<ClientToServerEvents[E]>[0],
   ): Promise<R> {
-    return new Promise<R>((resolve, reject) => {
-      const ack = (response: Ack<R>) => {
-        if (response.ok) {
-          resolve(response.data);
-          return;
-        }
-        reject(new Error(response.error));
+    return this.ensureConnected().then(
+      () =>
+        new Promise<R>((resolve, reject) => {
+          const timeoutHandle = setTimeout(() => {
+            reject(new Error('Serverantwort hat zu lange gedauert.'));
+          }, 8000);
+
+          const ack = (response: Ack<R>) => {
+            clearTimeout(timeoutHandle);
+            if (response.ok) {
+              resolve(response.data);
+              return;
+            }
+            reject(new Error(response.error));
+          };
+
+          (
+            this.socket.emit as (
+              eventName: E,
+              eventPayload: Parameters<ClientToServerEvents[E]>[0],
+              callback: (response: Ack<R>) => void,
+            ) => void
+          )(event, payload, ack);
+        }),
+    );
+  }
+
+  private ensureConnected(): Promise<void> {
+    if (this.socket.connected) {
+      return Promise.resolve();
+    }
+
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
+
+    this.connectPromise = new Promise<void>((resolve, reject) => {
+      const timeoutHandle = setTimeout(() => {
+        cleanup();
+        this.socket.disconnect();
+        const message = 'Verbindung zum Server fehlgeschlagen.';
+        this.serverErrorSubject.next(message);
+        reject(new Error(message));
+      }, 6000);
+
+      const onConnect = () => {
+        cleanup();
+        resolve();
       };
 
-      (
-        this.socket.emit as (
-          eventName: E,
-          eventPayload: Parameters<ClientToServerEvents[E]>[0],
-          callback: (response: Ack<R>) => void,
-        ) => void
-      )(event, payload, ack);
+      const onConnectError = (error: Error) => {
+        cleanup();
+        const message = error.message || 'Verbindung zum Server fehlgeschlagen.';
+        this.serverErrorSubject.next(message);
+        reject(new Error(message));
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeoutHandle);
+        this.socket.off('connect', onConnect);
+        this.socket.off('connect_error', onConnectError);
+        this.connectPromise = null;
+      };
+
+      this.socket.once('connect', onConnect);
+      this.socket.once('connect_error', onConnectError);
+      if (!this.socket.active) {
+        this.socket.connect();
+      }
     });
+
+    return this.connectPromise;
   }
 }

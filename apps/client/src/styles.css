@@ -1,5 +1,7 @@
 /* You can add global styles to this file, and also import other style files */
 @import 'simplebar/dist/simplebar.css';
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Permanent+Marker&display=swap');
+
 :root {
   --ui-font: 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
   --punk-font-display: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
@@ -40,6 +42,14 @@
 
 body {
   font-family: var(--ui-font);
+}
+
+.logo-word-main {
+  font-family: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+}
+
+.logo-word-graffiti {
+  font-family: 'Permanent Marker', 'Bangers', cursive;
 }
 
 .punk-page {
@@ -139,6 +149,37 @@ body {
   outline: none;
   border-color: var(--punk-color-magenta);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--punk-color-magenta) 28%, transparent);
+}
+
+.punk-input-label {
+    position: relative;
+    display: inline-block;
+    width: fit-content;
+    max-width: 100%;
+
+    padding: 0.28rem 0.85rem 0.34rem;
+
+    color: #fffaf0;
+    background: #111;
+
+    font-family: "Bangers", "Impact", "Arial Black", system-ui, sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+
+    transform: rotate(-1.8deg);
+    z-index: 1;
+
+    clip-path: polygon(0 18%,
+            4% 4%,
+            96% 0,
+            100% 22%,
+            97% 88%,
+            92% 100%,
+            5% 94%,
+            0 76%);
 }
 
 .halftone-overlay::before {

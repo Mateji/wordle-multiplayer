@@ -23,13 +23,13 @@
   border-radius: 4px;
 
   color: var(--key-text-color);
-  background-color: var(--key-bg-color);
+  background: var(--key-bg-color);
 
   font-size: clamp(12px, 2.2vw, 18px);
   font-weight: 700;
   text-transform: uppercase;
 
-  border: 0;
+  border: 1px solid #b9bcc0;
   padding: 0;
 
   display: flex;
@@ -46,16 +46,19 @@
 }
 
 .key.absent {
-  background-color: var(--key-absent-bg-color);
+  background: var(--key-absent-bg-color);
+  border-color: var(--key-absent-border-color);
   color: var(--key-absent-text-color);
 }
 
 .key.correct {
-  background-color: var(--key-correct-bg-color);
+  background: var(--key-correct-bg-color);
+  border-color: var(--key-correct-border-color);
   color: var(--key-correct-text-color);
 }
 
 .key.present {
-  background-color: var(--key-present-bg-color);
+  background: var(--key-present-bg-color);
+  border-color: var(--key-present-border-color);
   color: var(--key-present-text-color);
 }

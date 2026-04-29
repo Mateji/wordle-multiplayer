@@ -11,6 +11,7 @@ export type RoundStatus = 'idle' | 'running' | 'solved' | 'timeout' | 'cancelled
 export interface RoomSettings {
   wordLength: number;
   maxGuesses: number;
+  // 0 means no time limit.
   timeLimitSeconds: number;
   language: 'de';
 }

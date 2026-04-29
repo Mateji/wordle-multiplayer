@@ -1,201 +1,51 @@
 <div class="container punk-page">
-  <div class="topbar" role="toolbar" aria-label="Actions">
-    <button type="button" class="new-game" (click)="onNewGame()">Neues Spiel</button>
-  </div>
-
-  <main class="stage punk-stage">
+  <main class="stage punk-stage" [class.stage--with-topbar]="mode === 'game'">
     @if (mode === 'entry') {
-      <section class="entry-card punk-card punk-card-magenta halftone-overlay">
-        <span class="tape-accent" aria-hidden="true"></span>
-        <h1>Mehrspieler Wordle</h1>
-        <p class="hint">Raum erstellen oder mit Shortcode beitreten.</p>
-
-        <article class="entry-name-card punk-card punk-card-cyan halftone-overlay">
-          <span class="graffiti-label" aria-hidden="true">DEIN TAG</span>
-          <label class="entry-name-label">
-            Spielername
-            <input class="punk-input" type="text" [(ngModel)]="playerName" maxlength="20" placeholder="Dein Name" />
-          </label>
-        </article>
-
-        <div class="entry-arrows" aria-hidden="true">
-          <svg class="entry-arrow entry-arrow-left" viewBox="0 0 160 80" focusable="false">
-            <title>Dekorativer Pfeil links</title>
-            <path d="M8 8 C 60 8, 38 62, 78 62" />
-            <path d="M68 54 L 78 62 L 68 70" />
-          </svg>
-          <svg class="entry-arrow entry-arrow-right" viewBox="0 0 160 80" focusable="false">
-            <title>Dekorativer Pfeil rechts</title>
-            <path d="M152 8 C 100 8, 122 62, 82 62" />
-            <path d="M92 54 L 82 62 L 92 70" />
-          </svg>
-        </div>
-
-        <div class="entry-grid">
-          <article class="entry-box punk-card punk-card-lime halftone-overlay">
-            <h2>RAUM ERSTELLEN</h2>
-            <label>
-              Buchstaben
-              <input class="punk-input" type="number" min="4" max="12" [(ngModel)]="settingsForm.wordLength" />
-            </label>
-            <label>
-              Zeitlimit (Sek.)
-              <input class="punk-input" type="number" min="30" max="900" [(ngModel)]="settingsForm.timeLimitSeconds" />
-            </label>
-            <button class="punk-button" type="button" (click)="onCreateRoom()" [disabled]="isBusy">Raum erstellen</button>
-          </article>
-
-          <article class="entry-box punk-card punk-card-cyan halftone-overlay">
-            <h2>RAUM BEITRETEN</h2>
-            <label>
-              Shortcode
-              <input class="punk-input" type="text" [(ngModel)]="joinCode" maxlength="8" placeholder="z.B. 4H7KQ2" />
-            </label>
-            <button class="punk-button" type="button" (click)="onJoinRoom()" [disabled]="isBusy">Beitreten</button>
-          </article>
-        </div>
-      </section>
+      <app-entry-screen
+        [playerName]="playerName"
+        [joinCode]="joinCode"
+        [settingsForm]="settingsForm"
+        [isBusy]="isBusy"
+        (playerNameChange)="playerName = $event"
+        (joinCodeChange)="joinCode = $event"
+        (createRoom)="onCreateRoom()"
+        (joinRoom)="onJoinRoom()"
+      ></app-entry-screen>
     }
 
     @if (mode === 'lobby' && roomState) {
-      <section class="lobby-card punk-card punk-card-lime halftone-overlay">
-        <span class="tape-accent" aria-hidden="true"></span>
-        <span class="graffiti-label" aria-hidden="true">Lobby</span>
-        <header class="lobby-header">
-          <h2>Lobby</h2>
-          <div class="room-code">Raumcode: <strong>{{ roomState.id }}</strong></div>
-        </header>
-
-        <div class="lobby-grid">
-          <article class="punk-card punk-card-cyan halftone-overlay">
-            <h3>Einstellungen</h3>
-            <label>
-              Buchstaben
-              <input
-                class="punk-input"
-                type="number"
-                min="4"
-                max="12"
-                [(ngModel)]="settingsForm.wordLength"
-                [disabled]="!isHost || isBusy"
-              />
-            </label>
-            <label>
-              Zeitlimit (Sek.)
-              <input
-                class="punk-input"
-                type="number"
-                min="30"
-                max="900"
-                [(ngModel)]="settingsForm.timeLimitSeconds"
-                [disabled]="!isHost || isBusy"
-              />
-            </label>
-            <label>
-              Versuche
-              <input
-                class="punk-input"
-                type="number"
-                min="1"
-                max="10"
-                [(ngModel)]="settingsForm.maxGuesses"
-                [disabled]="!isHost || isBusy"
-              />
-            </label>
-            @if (isHost) {
-              <div class="lobby-actions">
-                <button class="punk-button" type="button" (click)="onUpdateLobbySettings()" [disabled]="isBusy">
-                  Einstellungen speichern
-                </button>
-                <button class="punk-button" type="button" (click)="onStartRound()" [disabled]="isBusy">Runde starten</button>
-              </div>
-            } @else {
-              <p class="hint">Nur der Host kann Einstellungen aendern und die Runde starten.</p>
-            }
-          </article>
-
-          <article class="punk-card punk-card-magenta halftone-overlay">
-            <h3>Spieler</h3>
-            <ul class="player-list">
-              @for (player of playerList; track player.id) {
-                <li>
-                  <span>{{ player.name }}</span>
-                  <span class="status" [class.offline]="!player.connected">{{ player.connected ? 'online' : 'offline' }}</span>
-                </li>
-              }
-            </ul>
-          </article>
-        </div>
-      </section>
+      <app-lobby-screen
+        [roomState]="roomState"
+        [playerList]="playerList"
+        [isHost]="isHost"
+        [isBusy]="isBusy"
+        [settingsForm]="settingsForm"
+        (updateLobbySettings)="onUpdateLobbySettings()"
+        (startRound)="onStartRound()"
+      ></app-lobby-screen>
     }
 
     @if (mode === 'game' && roomState) {
-      <section class="game-shell">
-        <aside class="progress-panel">
-          <h3>Spielerfortschritt</h3>
-          @for (player of playerList; track player.id) {
-            <div class="progress-row" [class.me]="isCurrentPlayer(player.id)">
-              <span class="name">{{ player.name }}</span>
-              <div class="progress-cells">
-                @for (cellState of getProgressCells(player.id); track $index) {
-                  <span
-                    class="progress-cell"
-                    [class.state-unset]="cellState === 'unset'"
-                    [class.state-present]="cellState === 'present'"
-                    [class.state-correct]="cellState === 'correct'"
-                    [class.progress-flash]="isProgressCellFlashing(player.id, $index)"
-                  ></span>
-                }
-              </div>
-            </div>
-          }
-        </aside>
-
-        <div class="board-panel">
-          <div class="game-meta">
-            <span>Raum: {{ roomState.id }}</span>
-            <span>Zeit: {{ timeRemainingLabel }}</span>
-            <span>Du: {{ myPlayerName }}</span>
-          </div>
-
-          <form #gameForm (submit)="onSubmit($event)" [style.padding-top.px]="topOffset">
-            <div class="wordle-container" #lettersContainer [style.max-height.px]="wordleMaxHeight">
-              <div class="letter-container" #letterRows>
-                @for (row of rows; track $index) {
-                  <div class="letter-row" [class.row-enter]="row.enter" [class.row-error]="row.error" [class.row-shake]="row.shake">
-                    @for (cell of row.cells; track $index; let cellIndex = $index) {
-                      <input
-                        #letterInput
-                        type="text"
-                        class="letter"
-                        appSingleLetter
-                        [value]="row.cells[cellIndex].letter"
-                        [disabled]="row.locked || !isGameInputEnabled"
-                        [attr.tabindex]="row.locked || !isGameInputEnabled ? -1 : 0"
-                        [class.correct]="row.cells[cellIndex].state === 'correct'"
-                        [class.present]="row.cells[cellIndex].state === 'present'"
-                        [class.absent]="row.cells[cellIndex].state === 'absent'"
-                        [class.unset]="row.cells[cellIndex].state === 'unset'"
-                      />
-                    }
-                  </div>
-                }
-              </div>
-            </div>
-
-            <div class="status-row" role="status" aria-live="polite">
-              <div class="word-error" [class.is-visible]="invalidWordVisible">{{ invalidWordMessage }}</div>
-            </div>
-
-            <app-keyboard
-              #keyboardHost
-              class="keyboard-container"
-              [keyStates]="keyStates"
-              (keyPressed)="onKeyboardKey($event)"
-            ></app-keyboard>
-          </form>
-        </div>
-      </section>
+      <app-game-screen
+        [roomState]="roomState"
+        [playerList]="playerList"
+        [playerId]="playerId"
+        [timeRemainingLabel]="timeRemainingLabel"
+        [myPlayerName]="myPlayerName"
+        [rows]="rows"
+        [keyStates]="keyStates"
+        [isGameInputEnabled]="isGameInputEnabled"
+        [invalidWordVisible]="invalidWordVisible"
+        [invalidWordMessage]="invalidWordMessage"
+        [topOffset]="topOffset"
+        [wordleMaxHeight]="wordleMaxHeight"
+        [getProgressCells]="getProgressCells.bind(this)"
+        [isCurrentPlayer]="isCurrentPlayer.bind(this)"
+        [isProgressCellFlashing]="isProgressCellFlashing.bind(this)"
+        (keyPressed)="onKeyboardKey($event)"
+        (submitted)="onSubmit($event)"
+        (newGame)="onNewGame()"
+      ></app-game-screen>
     }
 
     @if (actionError || serverError) {

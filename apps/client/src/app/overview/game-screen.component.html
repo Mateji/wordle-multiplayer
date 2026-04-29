@@ -1,0 +1,70 @@
+<div class="topbar" role="toolbar" aria-label="Actions">
+  <button type="button" class="new-game" (click)="newGame.emit()">Neues Spiel</button>
+</div>
+
+<section class="game-shell">
+  <aside class="progress-panel">
+    <h3>Spielerfortschritt</h3>
+    @for (player of playerList; track player.id) {
+      <div class="progress-row" [class.me]="isCurrentPlayer(player.id)">
+        <span class="name">{{ player.name }}</span>
+        <div class="progress-cells">
+          @for (cellState of getProgressCells(player.id); track $index) {
+            <span
+              class="progress-cell"
+              [class.state-unset]="cellState === 'unset'"
+              [class.state-present]="cellState === 'present'"
+              [class.state-correct]="cellState === 'correct'"
+              [class.progress-flash]="isProgressCellFlashing(player.id, $index)"
+            ></span>
+          }
+        </div>
+      </div>
+    }
+  </aside>
+
+  <div class="board-panel">
+    <div class="game-meta">
+      <span>Raum: {{ roomState.id }}</span>
+      <span>Zeit: {{ timeRemainingLabel }}</span>
+      <span>Du: {{ myPlayerName }}</span>
+    </div>
+
+    <form #gameForm (submit)="submitted.emit($event)" [style.padding-top.px]="topOffset">
+      <div class="wordle-container" #lettersContainer [style.max-height.px]="wordleMaxHeight">
+        <div class="letter-container" #letterRows>
+          @for (row of rows; track $index) {
+            <div class="letter-row" [class.row-enter]="row.enter" [class.row-error]="row.error" [class.row-shake]="row.shake">
+              @for (cell of row.cells; track $index; let cellIndex = $index) {
+                <input
+                  #letterInput
+                  type="text"
+                  class="letter"
+                  appSingleLetter
+                  [value]="row.cells[cellIndex].letter"
+                  [disabled]="row.locked || !isGameInputEnabled"
+                  [attr.tabindex]="row.locked || !isGameInputEnabled ? -1 : 0"
+                  [class.correct]="row.cells[cellIndex].state === 'correct'"
+                  [class.present]="row.cells[cellIndex].state === 'present'"
+                  [class.absent]="row.cells[cellIndex].state === 'absent'"
+                  [class.unset]="row.cells[cellIndex].state === 'unset'"
+                />
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="status-row" role="status" aria-live="polite">
+        <div class="word-error" [class.is-visible]="invalidWordVisible">{{ invalidWordMessage }}</div>
+      </div>
+
+      <app-keyboard
+        #keyboardHost
+        class="keyboard-container"
+        [keyStates]="keyStates"
+        (keyPressed)="keyPressed.emit($event)"
+      ></app-keyboard>
+    </form>
+  </div>
+</section>

@@ -1,0 +1,98 @@
+<section class="entry-layout">
+    <header class="entry-heading">
+        <img class="entry-logo" src="/assets/backgrounds/logo.png" alt="Mehrspieler Wordle Logo" />
+    </header>
+
+    <div class="tag-card-wrap">
+        <article class="tag-card" aria-label="Spielername eingeben">
+            <div class="tag-card__header" aria-hidden="true">
+                <span class="tag-card__title">HELLO</span>
+                <span class="tag-card__subtitle">my name is</span>
+            </div>
+            <label class="tag-card__label-row">
+                <span class="visually-hidden">Spielername</span>
+                <input
+                    class="tag-card__input"
+                    type="text"
+                    [ngModel]="playerName"
+                    (ngModelChange)="playerNameChange.emit($event)"
+                    maxlength="20"
+                    placeholder="Spielername" />
+            </label>
+        </article>
+    </div>
+
+    <!--
+  <div class="entry-arrows" aria-hidden="true">
+    <div class="entry-arrow-item entry-arrow-item--left">
+      <svg viewBox="0 0 220 90" focusable="false">
+        <path class="arrow" d="M206 30 H122 C98 30 78 48 78 70 V80" />
+        <path class="arrow" d="M78 80 L64 67 M78 80 L92 67" />
+      </svg>
+    </div>
+    <div class="entry-arrow-item entry-arrow-item--right">
+      <svg viewBox="0 0 220 90" focusable="false">
+        <path class="arrow" d="M14 30 H98 C122 30 142 48 142 70 V80" />
+        <path class="arrow" d="M142 80 L128 67 M142 80 L156 67" />
+      </svg>
+    </div>
+  </div>
+  -->
+
+    <div class="entry-grid">
+        <article class="entry-box room-action-card room-action-card--create punk-panel punk-panel--create">
+            <img class="entry-box__title-image" src="/assets/backgrounds/raum-erstellen.png" alt="Raum erstellen" />
+            <div class="punk-panel__inner">
+                <label class="punk-input-label">
+                    Hoste ein Match
+                </label>
+                <ul class="create-feature-list" aria-label="Raum erstellen Schritte">
+                    <li>
+                        <img src="/assets/icons/icon_share.png" alt="" aria-hidden="true" />
+                        <span>Raumcode teilen</span>
+                    </li>
+                    <li>
+                        <img src="/assets/icons/icon_friends.png" alt="" aria-hidden="true" />
+                        <span>Freunde einladen</span>
+                    </li>
+                    <li>
+                        <img src="/assets/icons/icon_start.png" alt="" aria-hidden="true" />
+                        <span>Start wenn alle da sind</span>
+                    </li>
+                </ul>
+                <button
+                    class="entry-image-button"
+                    type="button"
+                    (click)="createRoom.emit()"
+                    [disabled]="isBusy"
+                    aria-label="Raum erstellen">
+                    <img src="/assets/backgrounds/button_raum-erstellen.png" alt="" />
+                </button>
+            </div>
+        </article>
+
+        <article class="entry-box room-action-card room-action-card--join punk-panel punk-panel--join">
+            <img class="entry-box__title-image" src="/assets/backgrounds/raum-betreten.png" alt="Raum beitreten" />
+            <div class="punk-panel__inner">
+                <label class="punk-input-label">
+                    Gib den Raumcode ein
+                </label>
+                <div class="field-with-icon">
+                    <img class="field-icon" src="/assets/icons/icon_hash.png" alt="" aria-hidden="true" />
+                    <input
+                        class="punk-input"
+                        type="text"
+                        [ngModel]="joinCode"
+                        (ngModelChange)="joinCodeChange.emit($event)"
+                        maxlength="8"
+                        placeholder="z.B. 4H7KQ2" />
+                </div>
+                <!-- <p class="join-hint">Code rein, Crew joinen.</p> -->
+                <button class="entry-image-button" type="button" (click)="joinRoom.emit()" [disabled]="isBusy"
+                    aria-label="Beitreten">
+                    <img src="/assets/backgrounds/button_beitreten.png" alt="" />
+                </button>
+            </div>
+        </article>
+    </div>
+</section>
