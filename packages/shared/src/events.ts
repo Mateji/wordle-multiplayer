@@ -76,6 +76,13 @@ export interface CreateRoomPayload {
 export interface JoinRoomPayload {
   roomId: RoomId;
   playerName: string;
+  reconnectPlayerId?: PlayerId;
+}
+
+export interface KickPlayerPayload {
+  roomId: RoomId;
+  hostPlayerId: PlayerId;
+  targetPlayerId: PlayerId;
 }
 
 export interface SubmitGuessPayload {
@@ -108,6 +115,10 @@ export interface ClientToServerEvents {
   'room:join': (
     payload: JoinRoomPayload,
     ack: (response: Ack<{ roomId: RoomId; playerId: PlayerId; state: RoomStateSnapshot }>) => void,
+  ) => void;
+  'room:kick-player': (
+    payload: KickPlayerPayload,
+    ack: (response: Ack<{ state: RoomStateSnapshot }>) => void,
   ) => void;
   'guess:submit': (
     payload: SubmitGuessPayload,

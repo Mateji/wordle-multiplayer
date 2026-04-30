@@ -9,6 +9,7 @@ import {
   OnInit,
   ViewChild,
 } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import type { GuessCell, PlayerId, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
 import { Subscription } from 'rxjs';
 import type { LetterState, Row } from '../models';
@@ -19,6 +20,11 @@ import { LobbyScreenComponent } from './lobby-screen.component';
 
 type ViewMode = 'entry' | 'lobby' | 'game';
 
+type StoredRoomSession = {
+  roomId: string;
+  playerId: string;
+};
+
 @Component({
   selector: 'app-overview',
   imports: [EntryScreenComponent, LobbyScreenComponent, GameScreenComponent],
@@ -26,6 +32,9 @@ type ViewMode = 'entry' | 'lobby' | 'game';
   styleUrl: './overview.component.css',
 })
 export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
+  private static readonly PLAYER_NAME_STORAGE_KEY = 'wordle.playerName';
+  private static readonly ROOM_SESSION_STORAGE_KEY = 'wordle.roomSession';
+
   @ViewChild(GameScreenComponent)
   set gameScreenComponent(component: GameScreenComponent | undefined) {
     this.gameScreen = component;
@@ -45,6 +54,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   roomState: RoomStateSnapshot | null = null;
   actionError = '';
   serverError = '';
+  kickedBannerMessage = '';
   isBusy = false;
 
   settingsForm = {
@@ -70,6 +80,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private subscriptions = new Subscription();
   private readonly multiplayer = inject(MultiplayerService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   private pendingFocusIndex: number | null = null;
   private baseWordleHeight = 0;
@@ -88,8 +100,21 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly progressFlashTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   private gameScreen?: GameScreenComponent;
   private letterInputChangesSubscription: Subscription | null = null;
+  private pendingRoomIdFromLink = '';
+  private requiresNameForRoomLink = false;
+  private suppressNextRouteAutoJoin = false;
+  private kickedBannerTimeout: ReturnType<typeof setTimeout> | null = null;
+  kickedDialogMessage = '';
+  linkCopiedMessage = '';
+  private copyNoticeTimeout: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
+    this.playerName = this.getStoredPlayerName();
+    const storedSession = this.getStoredRoomSession();
+    if (storedSession) {
+      this.roomId = storedSession.roomId;
+      this.playerId = storedSession.playerId;
+    }
     this.resetRows(this.settingsForm.wordLength);
 
     this.subscriptions.add(
@@ -106,6 +131,84 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
         this.serverError = error;
       }),
     );
+
+    this.subscriptions.add(
+      this.multiplayer.kicked$.subscribe((message) => {
+        if (!message) {
+          return;
+        }
+
+        // Show a blocking dialog to the kicked player; only navigate back when they acknowledge.
+        this.kickedDialogMessage = message;
+        this.cdr.detectChanges();
+      }),
+    );
+
+    this.subscriptions.add(
+      this.route.paramMap.subscribe((params) => {
+        const linkedRoomId = this.normalizeRoomCode(params.get('roomId') ?? '');
+        this.pendingRoomIdFromLink = linkedRoomId;
+        this.joinCode = linkedRoomId;
+
+        const linkedRoomSession = this.getStoredRoomSession();
+        if (linkedRoomSession && linkedRoomSession.roomId === linkedRoomId) {
+          this.roomId = linkedRoomSession.roomId;
+          this.playerId = linkedRoomSession.playerId;
+        }
+
+        if (linkedRoomId) {
+          try {
+            const serverBase = `${window.location.protocol}//${window.location.hostname}:3001`;
+            void fetch(`${serverBase}/rooms/${linkedRoomId}`, { method: 'GET' })
+              .then((res) => {
+                if (res.status === 404) {
+                  if (this.pendingRoomIdFromLink === linkedRoomId) {
+                    this.pendingRoomIdFromLink = '';
+                    this.joinCode = '';
+                    this.requiresNameForRoomLink = false;
+                    this.clearRoomSession();
+                    void this.router.navigate(['/'], { replaceUrl: true });
+                  }
+                }
+              })
+              .catch(() => {
+                // ignore network errors here (server might be restarting)
+              });
+          } catch {
+            // ignore
+          }
+        }
+
+        if (!linkedRoomId) {
+          this.requiresNameForRoomLink = false;
+          return;
+        }
+
+        if (this.suppressNextRouteAutoJoin && this.roomId === linkedRoomId) {
+          this.suppressNextRouteAutoJoin = false;
+          this.requiresNameForRoomLink = false;
+          return;
+        }
+
+        if (this.playerId && this.roomId === linkedRoomId) {
+          this.requiresNameForRoomLink = false;
+          return;
+        }
+
+        if (this.mode !== 'entry') {
+          return;
+        }
+
+        if (!this.playerName.trim()) {
+          this.requiresNameForRoomLink = true;
+          this.mode = 'entry';
+          return;
+        }
+
+        this.requiresNameForRoomLink = false;
+        void this.joinLinkedRoom(linkedRoomId);
+      }),
+    );
   }
 
   ngAfterViewInit(): void {
@@ -118,6 +221,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.letterInputChangesSubscription = null;
     this.clearTransientTimers();
     this.clearTicker();
+    this.clearKickedBanner();
   }
 
   @HostListener('window:resize')
@@ -313,6 +417,10 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       });
       this.playerId = response.playerId;
       this.roomId = response.roomId;
+      this.storePlayerName(this.playerName);
+      this.storeRoomSession(response.roomId, response.playerId);
+      this.suppressNextRouteAutoJoin = true;
+      await this.router.navigate(['/room', response.roomId], { replaceUrl: true });
       this.applyRoomState(response.state);
     } catch (error) {
       this.actionError = error instanceof Error ? error.message : 'Raum konnte nicht erstellt werden.';
@@ -336,16 +444,36 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.serverError = '';
     this.isBusy = true;
 
+    const normalizedJoinCode = this.normalizeRoomCode(this.joinCode);
+
     try {
+      const reconnectPlayerId = this.roomId === normalizedJoinCode ? this.playerId : '';
       const response = await this.multiplayer.joinRoom({
         roomId: this.joinCode,
         playerName: this.playerName,
+        reconnectPlayerId: reconnectPlayerId || undefined,
       });
       this.playerId = response.playerId;
       this.roomId = response.roomId;
+      this.storePlayerName(this.playerName);
+      this.storeRoomSession(response.roomId, response.playerId);
+      this.requiresNameForRoomLink = false;
+      this.pendingRoomIdFromLink = '';
+      this.suppressNextRouteAutoJoin = true;
+      await this.router.navigate(['/room', response.roomId], { replaceUrl: true });
       this.applyRoomState(response.state);
     } catch (error) {
-      this.actionError = error instanceof Error ? error.message : 'Raumbeitritt fehlgeschlagen.';
+      const message = error instanceof Error ? error.message : 'Raumbeitritt fehlgeschlagen.';
+      this.actionError = message;
+
+      const isLinkJoin = !!this.pendingRoomIdFromLink && normalizedJoinCode === this.pendingRoomIdFromLink;
+      const roomNotFound = /room not found/i.test(message);
+      if (isLinkJoin && roomNotFound) {
+        this.requiresNameForRoomLink = false;
+        this.pendingRoomIdFromLink = '';
+        this.clearRoomSession();
+        await this.router.navigate(['/'], { replaceUrl: true });
+      }
     } finally {
       this.isBusy = false;
     }
@@ -388,6 +516,27 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       await this.multiplayer.startRound({ roomId: this.roomState.id, playerId: this.playerId });
     } catch (error) {
       this.actionError = error instanceof Error ? error.message : 'Runde konnte nicht gestartet werden.';
+    } finally {
+      this.isBusy = false;
+    }
+  }
+
+  async onKickPlayer(targetPlayerId: PlayerId): Promise<void> {
+    if (!this.roomState || !this.isHost || !targetPlayerId) {
+      return;
+    }
+
+    this.actionError = '';
+    this.isBusy = true;
+
+    try {
+      await this.multiplayer.kickPlayer({
+        roomId: this.roomState.id,
+        hostPlayerId: this.playerId,
+        targetPlayerId,
+      });
+    } catch (error) {
+      this.actionError = error instanceof Error ? error.message : 'Spieler konnte nicht entfernt werden.';
     } finally {
       this.isBusy = false;
     }
@@ -481,6 +630,62 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearInvalidWordMessage();
     this.clearProgressFlashes();
     this.resetRows(this.settingsForm.wordLength);
+    this.requiresNameForRoomLink = false;
+    this.pendingRoomIdFromLink = '';
+    this.clearRoomSession();
+    await this.router.navigate(['/'], { replaceUrl: true });
+  }
+
+  async onLeaveLobby(): Promise<void> {
+    // Try to inform server that we leave the room so it can update other clients immediately.
+    try {
+      if (this.roomId && this.playerId) {
+        this.multiplayer.disconnectSocket();
+      }
+    } catch {
+      // ignore errors and continue with local cleanup
+    }
+
+    this.mode = 'entry';
+    this.roomId = '';
+    this.playerId = '';
+    this.roomState = null;
+    this.currentRoundId = '';
+    this.showWinPopup = false;
+    this.gameOver = false;
+    this.isBusy = false;
+    this.serverError = '';
+    this.actionError = '';
+    this.joinCode = '';
+    this.pendingRoomIdFromLink = '';
+    this.requiresNameForRoomLink = false;
+    this.suppressNextRouteAutoJoin = false;
+    this.clearTicker();
+    this.clearInvalidWordMessage();
+    this.clearProgressFlashes();
+    this.clearRoomSession();
+    this.multiplayer.clearServerError();
+    this.multiplayer.clearKickedNotice();
+    this.resetRows(this.settingsForm.wordLength);
+    this.cdr.detectChanges();
+    await this.router.navigate(['/'], { replaceUrl: true });
+  }
+
+  async onJoinLinkedRoom(): Promise<void> {
+    if (!this.pendingRoomIdFromLink) {
+      return;
+    }
+
+    this.joinCode = this.pendingRoomIdFromLink;
+    await this.onJoinRoom();
+  }
+
+  get showRoomLinkNamePrompt(): boolean {
+    return this.mode === 'entry' && this.requiresNameForRoomLink;
+  }
+
+  get pendingRoomCodeForPrompt(): string {
+    return this.pendingRoomIdFromLink;
   }
 
   getProgressCells(playerId: PlayerId): ProgressCellState[] {
@@ -500,9 +705,19 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private applyRoomState(state: RoomStateSnapshot): void {
+    if (!this.playerId) {
+      const storedSession = this.getStoredRoomSession();
+      if (storedSession && storedSession.roomId === state.id) {
+        this.playerId = storedSession.playerId;
+      }
+    }
+
     const previousState = this.roomState;
     this.roomState = state;
     this.roomId = state.id;
+    if (this.playerId) {
+      this.storeRoomSession(state.id, this.playerId);
+    }
     this.settingsForm.wordLength = state.settings.wordLength;
     this.settingsForm.maxGuesses = state.settings.maxGuesses;
     this.settingsForm.timeLimitSeconds = state.settings.timeLimitSeconds;
@@ -806,6 +1021,11 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       cancelAnimationFrame(this.layoutRaf);
       this.layoutRaf = null;
     }
+    if (this.copyNoticeTimeout) {
+      clearTimeout(this.copyNoticeTimeout);
+      this.copyNoticeTimeout = null;
+    }
+    this.linkCopiedMessage = '';
     this.clearProgressFlashes();
   }
 
@@ -866,5 +1086,191 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private progressCellKey(playerId: PlayerId, index: number): string {
     return `${playerId}:${index}`;
+  }
+
+  private async joinLinkedRoom(roomId: string): Promise<void> {
+    if (!roomId || !this.playerName.trim()) {
+      return;
+    }
+
+    if (this.isBusy) {
+      return;
+    }
+
+    if ((this.roomState?.id === roomId && this.playerId) || (this.roomId === roomId && this.playerId)) {
+      return;
+    }
+
+    this.joinCode = roomId;
+    await this.onJoinRoom();
+  }
+
+  async onCopyRoomLink(): Promise<void> {
+    if (typeof window === 'undefined') return;
+
+    const href = window.location.href || '';
+    if (!href) return;
+
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(href);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = href;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      if (this.copyNoticeTimeout) {
+        clearTimeout(this.copyNoticeTimeout);
+        this.copyNoticeTimeout = null;
+      }
+      this.linkCopiedMessage = 'Link kopiert.';
+      this.copyNoticeTimeout = setTimeout(() => {
+        this.linkCopiedMessage = '';
+        this.copyNoticeTimeout = null;
+        this.cdr.detectChanges();
+      }, 1500);
+      this.cdr.detectChanges();
+    } catch {
+      this.linkCopiedMessage = 'Link konnte nicht kopiert werden.';
+      setTimeout(() => {
+        this.linkCopiedMessage = '';
+        this.cdr.detectChanges();
+      }, 2500);
+    }
+  }
+
+  private storePlayerName(playerName: string): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const trimmedName = playerName.trim();
+    if (!trimmedName) {
+      return;
+    }
+
+    window.localStorage.setItem(OverviewComponent.PLAYER_NAME_STORAGE_KEY, trimmedName);
+  }
+
+  private getStoredPlayerName(): string {
+    if (typeof window === 'undefined') {
+      return '';
+    }
+
+    return window.localStorage.getItem(OverviewComponent.PLAYER_NAME_STORAGE_KEY)?.trim() ?? '';
+  }
+
+  private storeRoomSession(roomId: string, playerId: string): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const normalizedRoomId = this.normalizeRoomCode(roomId);
+    const normalizedPlayerId = playerId.trim();
+    if (!normalizedRoomId || !normalizedPlayerId) {
+      return;
+    }
+
+    const payload: StoredRoomSession = {
+      roomId: normalizedRoomId,
+      playerId: normalizedPlayerId,
+    };
+    window.localStorage.setItem(OverviewComponent.ROOM_SESSION_STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  private getStoredRoomSession(): StoredRoomSession | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const raw = window.localStorage.getItem(OverviewComponent.ROOM_SESSION_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Partial<StoredRoomSession>;
+      const roomId = this.normalizeRoomCode(parsed.roomId ?? '');
+      const playerId = (parsed.playerId ?? '').trim();
+      if (!roomId || !playerId) {
+        return null;
+      }
+
+      return { roomId, playerId };
+    } catch {
+      return null;
+    }
+  }
+
+  private clearRoomSession(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.removeItem(OverviewComponent.ROOM_SESSION_STORAGE_KEY);
+  }
+
+  private normalizeRoomCode(code: string): string {
+    return code.trim().toLocaleUpperCase('de-DE');
+  }
+
+  private async handleKicked(message: string): Promise<void> {
+    this.mode = 'entry';
+    this.roomId = '';
+    this.playerId = '';
+    this.roomState = null;
+    this.currentRoundId = '';
+    this.showWinPopup = false;
+    this.gameOver = false;
+    this.isBusy = false;
+    this.serverError = '';
+    this.actionError = message;
+    this.showKickedBanner(message);
+    this.joinCode = '';
+    this.pendingRoomIdFromLink = '';
+    this.requiresNameForRoomLink = false;
+    this.suppressNextRouteAutoJoin = false;
+    this.clearTicker();
+    this.clearInvalidWordMessage();
+    this.clearProgressFlashes();
+    this.clearRoomSession();
+    this.multiplayer.clearServerError();
+    this.multiplayer.clearKickedNotice();
+    this.resetRows(this.settingsForm.wordLength);
+    this.cdr.detectChanges();
+    await this.router.navigate(['/'], { replaceUrl: true });
+  }
+
+  private showKickedBanner(message: string): void {
+    this.clearKickedBanner();
+    this.kickedBannerMessage = message;
+    this.kickedBannerTimeout = setTimeout(() => {
+      this.kickedBannerMessage = '';
+      this.kickedBannerTimeout = null;
+      this.cdr.detectChanges();
+    }, 5500);
+  }
+
+  private clearKickedBanner(): void {
+    if (this.kickedBannerTimeout) {
+      clearTimeout(this.kickedBannerTimeout);
+      this.kickedBannerTimeout = null;
+    }
+    this.kickedBannerMessage = '';
+  }
+
+  async acknowledgeKickedDialog(): Promise<void> {
+    if (!this.kickedDialogMessage) return;
+    const message = this.kickedDialogMessage;
+    // Use the existing cleanup/navigation for kicked players
+    await this.handleKicked(message);
+    this.kickedDialogMessage = '';
+    this.cdr.detectChanges();
   }
 }

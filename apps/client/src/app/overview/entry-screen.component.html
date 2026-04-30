@@ -22,6 +22,19 @@
         </article>
     </div>
 
+    @if (showRoomLinkNamePrompt) {
+        <div class="link-join-actions">
+            <p class="link-join-hint">Du trittst Raum {{ pendingRoomCode }} bei.</p>
+            <button
+                type="button"
+                class="punk-button link-join-button"
+                [disabled]="isBusy || !playerName.trim()"
+                (click)="joinSharedRoom.emit()">
+                In Lobby beitreten
+            </button>
+        </div>
+    } @else {
+
     <!--
   <div class="entry-arrows" aria-hidden="true">
     <div class="entry-arrow-item entry-arrow-item--left">
@@ -84,6 +97,7 @@
                         type="text"
                         [ngModel]="joinCode"
                         (ngModelChange)="joinCodeChange.emit($event)"
+                        (paste)="onPaste($event)"
                         maxlength="8"
                         placeholder="z.B. 4H7KQ2" />
                 </div>
@@ -95,4 +109,5 @@
             </div>
         </article>
     </div>
+    }
 </section>

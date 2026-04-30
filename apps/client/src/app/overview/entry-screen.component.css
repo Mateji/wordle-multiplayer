@@ -50,7 +50,7 @@
 .tag-card-wrap {
     --name-tag-shape: polygon(5% 4%, 96% 1%, 100% 15%, 100% 82%, 93% 100%, 4% 97%, 0 13%);
     margin: 0 auto;
-    width: min(42%, 340px);
+    width: min(36%, 290px);
     position: relative;
     transform: rotate(-1.8deg);
 }
@@ -262,7 +262,7 @@
 }
 
 .punk-panel--create {
-    --panel-color: #c7f238;
+    --panel-color: var(--punk-panel-create-bg);
     --panel-shape: polygon(6% 0, 100% 4%, 97% 34%, 100% 86%, 90% 100%, 10% 97%, 0 72%, 2% 14%);
 }
 
@@ -271,7 +271,7 @@
 }
 
 .punk-panel--join {
-    --panel-color: #25c7c4;
+    --panel-color: var(--punk-panel-join-bg);
     --panel-shape: polygon(3% 4%, 98% 0, 100% 22%, 97% 88%, 86% 100%, 8% 96%, 0 56%, 1% 18%);
 }
 
@@ -413,6 +413,42 @@
     outline: 4px solid #ff2f9f;
     outline-offset: 6px;
     border-radius: 8px;
+}
+
+.link-join-actions {
+    width: min(460px, 92%);
+    margin: 1rem auto 0;
+    display: grid;
+    gap: 0.75rem;
+    justify-items: center;
+}
+
+.link-join-hint {
+    margin: 0;
+    padding: 0.35rem 0.8rem;
+    border: 2px solid #111111;
+    border-radius: 999px;
+    background: #fffaf0;
+    color: #111111;
+    font-family: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.link-join-button {
+    min-width: min(300px, 100%);
+    min-height: 48px;
+    font-family: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+    font-size: 1.12rem;
+    letter-spacing: 0.04em;
+    border-width: 3px;
+    box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.25);
+}
+
+.link-join-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .room-action-card--join .entry-image-button {

@@ -30,6 +30,21 @@
   height: calc(100vh - 48px);
 }
 
+.kicked-banner {
+  align-self: center;
+  margin-top: 6px;
+  padding: 8px 14px;
+  border: 3px solid var(--punk-color-ink);
+  background: var(--punk-color-magenta);
+  color: #111111;
+  font-family: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transform: rotate(-1deg);
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.25);
+}
+
 .global-error {
   align-self: center;
   background: #fff2f2;
@@ -39,6 +54,21 @@
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 600;
+}
+
+.copy-notice {
+  align-self: center;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border: 2px solid var(--punk-color-ink);
+  background: #e6ffed;
+  color: #0b6b28;
+  font-family: var(--punk-font-ui, system-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 10px;
+  transform: rotate(-0.8deg);
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.12);
 }
 
 .overlay {

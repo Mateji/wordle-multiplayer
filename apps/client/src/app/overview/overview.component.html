@@ -1,13 +1,32 @@
 <div class="container punk-page">
   <main class="stage punk-stage" [class.stage--with-topbar]="mode === 'game'">
+    @if (kickedBannerMessage) {
+      <div class="kicked-banner" role="status" aria-live="polite">{{ kickedBannerMessage }}</div>
+    }
+
+    @if (kickedDialogMessage) {
+      <div class="overlay" role="dialog" aria-modal="true" aria-labelledby="kicked-title">
+        <div class="popup">
+          <h2 id="kicked-title">Du wurdest entfernt</h2>
+          <p class="score">{{ kickedDialogMessage }}</p>
+          <div class="popup-actions">
+            <button type="button" class="cancel" (click)="acknowledgeKickedDialog()">OK</button>
+          </div>
+        </div>
+      </div>
+    }
+
     @if (mode === 'entry') {
       <app-entry-screen
         [playerName]="playerName"
         [joinCode]="joinCode"
+        [showRoomLinkNamePrompt]="showRoomLinkNamePrompt"
+        [pendingRoomCode]="pendingRoomCodeForPrompt"
         [settingsForm]="settingsForm"
         [isBusy]="isBusy"
         (playerNameChange)="playerName = $event"
         (joinCodeChange)="joinCode = $event"
+        (joinSharedRoom)="onJoinLinkedRoom()"
         (createRoom)="onCreateRoom()"
         (joinRoom)="onJoinRoom()"
       ></app-entry-screen>
@@ -22,6 +41,9 @@
         [settingsForm]="settingsForm"
         (updateLobbySettings)="onUpdateLobbySettings()"
         (startRound)="onStartRound()"
+        (kickPlayer)="onKickPlayer($event)"
+        (copyRoomLink)="onCopyRoomLink()"
+        (leaveLobby)="onLeaveLobby()"
       ></app-lobby-screen>
     }
 
@@ -50,6 +72,9 @@
 
     @if (actionError || serverError) {
       <div class="global-error">{{ actionError || serverError }}</div>
+    }
+    @if (linkCopiedMessage) {
+      <div class="copy-notice" role="status" aria-live="polite">{{ linkCopiedMessage }}</div>
     }
   </main>
 

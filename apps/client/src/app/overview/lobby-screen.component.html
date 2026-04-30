@@ -1,69 +1,138 @@
-<section class="lobby-card punk-card punk-card-lime halftone-overlay">
-  <span class="tape-accent" aria-hidden="true"></span>
-  <span class="graffiti-label" aria-hidden="true">Lobby</span>
-  <header class="lobby-header">
-    <h2>Lobby</h2>
-    <div class="room-code">Raumcode: <strong>{{ roomState.id }}</strong></div>
+<section class="lobby-layout" aria-label="Lobby">
+  <header class="lobby-top-row">
+    <img class="lobby-logo" src="/assets/backgrounds/logo.png" alt="Mehrspieler Wordle Logo" />
+
+    <aside class="room-code-card" aria-label="Raumcode Karte">
+      <span class="room-code-tag">RAUMCODE</span>
+      <div class="room-code-sticker punk-input-label">{{ roomState.id }}</div>
+      <button
+        type="button"
+        class="room-code-share"
+        aria-label="Teil den Code kopieren"
+        title="Teil den Code kopieren"
+        (click)="copyRoomLink.emit()"
+      >
+        <img src="/assets/icons/icon_share.png" alt="" aria-hidden="true" />
+        <span>TEIL DEN CODE</span>
+      </button>
+    </aside>
   </header>
 
-  <div class="lobby-grid">
-    <article class="punk-card punk-card-cyan halftone-overlay">
-      <h3>Einstellungen</h3>
-      <label>
-        Buchstaben
-        <input
-          class="punk-input"
-          type="number"
-          min="3"
-          max="7"
-          [(ngModel)]="settingsForm.wordLength"
-          [disabled]="!isHost || isBusy"
-        />
-      </label>
-      <label>
-        Zeitlimit
-        <select class="punk-input" [(ngModel)]="settingsForm.timeLimitSeconds" [disabled]="!isHost || isBusy">
-          <option [ngValue]="0">Ohne Zeitlimit</option>
-          <option [ngValue]="60">1 Minute</option>
-          <option [ngValue]="120">2 Minuten</option>
-          <option [ngValue]="180">3 Minuten</option>
-          <option [ngValue]="240">4 Minuten</option>
-          <option [ngValue]="300">5 Minuten</option>
-        </select>
-      </label>
-      <label>
-        Versuche
-        <input
-          class="punk-input"
-          type="number"
-          min="1"
-          max="10"
-          [(ngModel)]="settingsForm.maxGuesses"
-          [disabled]="!isHost || isBusy"
-        />
-      </label>
-      @if (isHost) {
-        <div class="lobby-actions">
-          <button class="punk-button" type="button" (click)="updateLobbySettings.emit()" [disabled]="isBusy">
-            Einstellungen speichern
-          </button>
-          <button class="punk-button" type="button" (click)="startRound.emit()" [disabled]="isBusy">Runde starten</button>
+  <section class="lobby-frame" aria-label="Lobby Bereich">
+    <div class="lobby-kicker-wrap" aria-hidden="true">
+      <span class="punk-input-label lobby-kicker">Lobby</span>
+      <button
+        type="button"
+        class="player-kick-button lobby-leave-button"
+        aria-label="Lobby verlassen"
+        title="Lobby verlassen"
+        (click)="leaveLobby.emit()"
+      >
+        Lobby verlassen
+      </button>
+    </div>
+    
+    <div class="lobby-panels">
+      <article class="lobby-panel settings-panel" aria-labelledby="settings-title">
+        <div class="lobby-panel-title-wrap">
+          <h3 id="settings-title" class="punk-input-label lobby-panel-title">Einstellungen</h3>
         </div>
-      } @else {
-        <p class="hint">Nur der Host kann Einstellungen aendern und die Runde starten.</p>
-      }
-    </article>
 
-    <article class="punk-card punk-card-magenta halftone-overlay">
-      <h3>Spieler</h3>
-      <ul class="player-list">
-        @for (player of playerList; track player.id) {
-          <li>
-            <span>{{ player.name }}</span>
-            <span class="status" [class.offline]="!player.connected">{{ player.connected ? 'online' : 'offline' }}</span>
-          </li>
+        <label class="lobby-field">
+          <span class="lobby-field-label">Buchstaben</span>
+          <div class="field-with-icon">
+            <img class="field-icon" src="/assets/icons/icon_letter.png" alt="" aria-hidden="true" />
+            <input
+              class="punk-input"
+              type="number"
+              min="3"
+              max="7"
+              [(ngModel)]="settingsForm.wordLength"
+              [disabled]="!isHost || isBusy"
+            />
+          </div>
+        </label>
+
+        <label class="lobby-field">
+          <span class="lobby-field-label">Zeitlimit (Sek.)</span>
+          <div class="field-with-icon">
+            <img class="field-icon" src="/assets/icons/icon_clock.png" alt="" aria-hidden="true" />
+            <select class="punk-input" [(ngModel)]="settingsForm.timeLimitSeconds" [disabled]="!isHost || isBusy">
+              <option [ngValue]="0">Ohne Zeitlimit</option>
+              <option [ngValue]="60">1 Minute</option>
+              <option [ngValue]="120">2 Minuten</option>
+              <option [ngValue]="180">3 Minuten</option>
+              <option [ngValue]="240">4 Minuten</option>
+              <option [ngValue]="300">5 Minuten</option>
+            </select>
+          </div>
+        </label>
+
+        <label class="lobby-field">
+          <span class="lobby-field-label">Versuche</span>
+          <div class="field-with-icon">
+            <img class="field-icon" src="/assets/icons/icon_hash.png" alt="" aria-hidden="true" />
+            <input
+              class="punk-input"
+              type="number"
+              min="1"
+              max="10"
+              [(ngModel)]="settingsForm.maxGuesses"
+              [disabled]="!isHost || isBusy"
+            />
+          </div>
+        </label>
+
+        @if (isHost) {
+          <div class="lobby-actions">
+            <button class="punk-button lobby-button-save" type="button" (click)="updateLobbySettings.emit()" [disabled]="isBusy">
+              Einstellungen speichern
+            </button>
+            <button class="punk-button lobby-button-start" type="button" (click)="startRound.emit()" [disabled]="isBusy">
+              Runde starten
+            </button>
+          </div>
+        } @else {
+          <p class="hint">Nur der Host kann Einstellungen ändern und die Runde starten.</p>
         }
-      </ul>
-    </article>
-  </div>
+      </article>
+
+      <article class="lobby-panel players-panel" aria-labelledby="players-title">
+        <div class="lobby-panel-title-wrap">
+          <h3 id="players-title" class="punk-input-label lobby-panel-title">Spieler</h3>
+        </div>
+
+        <ul class="player-list">
+          @for (player of playerList; track player.id) {
+            <li class="player-card">
+              <span class="player-avatar" aria-hidden="true">{{ player.name.slice(0, 1).toUpperCase() }}</span>
+              <span class="player-name">{{ player.name }}</span>
+              @if (player.id === roomState.hostPlayerId) {
+                <span class="player-host-crown" aria-label="Host">&#9819;</span>
+              }
+              @if (isHost && player.id !== roomState.hostPlayerId) {
+                <button
+                  type="button"
+                  class="player-kick-button"
+                  [disabled]="isBusy"
+                  (click)="kickPlayer.emit(player.id)"
+                  aria-label="Spieler entfernen">
+                  Rauswerfen
+                </button>
+              }
+              <span class="status" [class.offline]="!player.connected">{{ player.connected ? 'online' : 'offline' }}</span>
+            </li>
+          }
+        </ul>
+
+        @if (!(playerList.length > 7)) {
+          <div class="player-placeholders" aria-hidden="true">
+            @for (slot of [0, 1, 2, 3, 4, 5, 6, 7].slice(playerList.length); track $index) {
+              <div class="placeholder-slot"></div>
+            }
+          </div>
+        }
+      </article>
+    </div>
+  </section>
 </section>

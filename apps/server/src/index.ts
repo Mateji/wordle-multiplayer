@@ -9,14 +9,32 @@ import type {
   GuessEntry,
   PlayerId,
   PlayerRoundProgress,
+  PlayerSummary,
   RoomId,
+  RoomPhase,
   RoomSettings,
   RoomStateSnapshot,
+  RoundSnapshot,
   ServerToClientEvents,
 } from '@wordle/shared';
 import cors from 'cors';
 import express from 'express';
 import { Server } from 'socket.io';
+
+interface InternalRoom {
+  id: RoomId;
+  phase: RoomPhase;
+  hostPlayerId: PlayerId;
+  settings: RoomSettings;
+  players: PlayerSummary[];
+  round: RoundSnapshot;
+  playerProgress: PlayerRoundProgress[];
+  guesses: GuessEntry[];
+  updatedAt: number;
+  secretWord: string;
+}
+
+type WordFilePayload = string[] | { data?: unknown };
 
 const DEFAULT_SETTINGS: RoomSettings = {
   wordLength: 5,
@@ -30,20 +48,13 @@ const MAX_WORD_LENGTH = 7;
 const MIN_MAX_GUESSES = 1;
 const MAX_MAX_GUESSES = 10;
 const ALLOWED_TIME_LIMITS_SECONDS = new Set([0, 60, 120, 180, 240, 300]);
-const SUPPORTED_WORD_LENGTHS = [3, 4, 5, 6, 7] as const;
-
-type InternalRoom = RoomStateSnapshot & {
-  secretWord: string;
-  guesses: GuessEntry[];
-};
-
-type WordFilePayload = {
-  data?: unknown;
-};
+const SUPPORTED_WORD_LENGTHS = [3, 4, 5, 6, 7];
+const PLAYER_REJOIN_TIMEOUT_MS = 2 * 60 * 1000;
 
 const rooms = new Map<RoomId, InternalRoom>();
 const roomTimers = new Map<RoomId, ReturnType<typeof setTimeout>>();
 const socketSessions = new Map<string, { roomId: RoomId; playerId: PlayerId }>();
+const playerDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,19 +63,57 @@ const assetsDir = path.resolve(__dirname, '../../client/src/assets');
 const targetWordsByLength = loadTargetWordsByLength();
 const allowedWordsByLength = loadAllowedWordsByLength();
 const availableWordLengths = new Set<number>(targetWordsByLength.keys());
+const allowedCorsOrigins = [
+  /^https?:\/\/localhost(?::\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(?::\d+)?$/,
+  /^https?:\/\/\[::1\](?::\d+)?$/,
+];
+
+const isAllowedCorsOrigin = (origin?: string): boolean => {
+  if (!origin) {
+    return true;
+  }
+
+  if (origin === 'null') {
+    return true;
+  }
+
+  return allowedCorsOrigins.some((pattern) => pattern.test(origin));
+};
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      const isAllowed = isAllowedCorsOrigin(origin);
+      callback(isAllowed ? null : new Error('CORS origin not allowed'), isAllowed);
+    },
+  }),
+);
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, rooms: rooms.size });
 });
 
+app.get('/rooms/:roomId', (req, res) => {
+  const roomId = normalizeRoomCode(String(req.params.roomId ?? ''));
+  const room = rooms.get(roomId);
+  if (!room) {
+    res.status(404).json({ ok: false, error: 'Room not found' });
+    return;
+  }
+  res.json({ ok: true, state: publicState(room) });
+});
+
 const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: '*',
+    origin: true,
+    methods: ['GET', 'POST'],
+  },
+  allowRequest: (req, callback) => {
+    callback(null, isAllowedCorsOrigin(req.headers.origin));
   },
 });
 
@@ -127,9 +176,23 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const playerId = randomId('player');
-    room.players.push({ id: playerId, name: playerName, connected: true });
-    room.playerProgress.push(emptyProgress(playerId, room.settings.wordLength));
+    const reconnectPlayerId = payload.reconnectPlayerId?.trim();
+    const reconnectPlayer = reconnectPlayerId
+      ? room.players.find((entry) => entry.id === reconnectPlayerId)
+      : undefined;
+
+    let playerId: PlayerId;
+    if (reconnectPlayer) {
+      reconnectPlayer.connected = true;
+      reconnectPlayer.name = playerName;
+      playerId = reconnectPlayer.id;
+      clearPlayerDisconnectTimer(room.id, playerId);
+    } else {
+      playerId = randomId('player');
+      room.players.push({ id: playerId, name: playerName, connected: true });
+      room.playerProgress.push(emptyProgress(playerId, room.settings.wordLength));
+    }
+
     room.updatedAt = Date.now();
 
     socketSessions.set(socket.id, { roomId: room.id, playerId });
@@ -172,6 +235,43 @@ io.on('connection', (socket) => {
       endsAt: null,
       winnerPlayerId: null,
     };
+    room.updatedAt = Date.now();
+
+    const state = publicState(room);
+    ack(successAck({ state }));
+    io.to(room.id).emit('room:state', state);
+  });
+
+  socket.on('room:kick-player', (payload, ack) => {
+    const room = rooms.get(payload.roomId);
+    if (!room) {
+      ack(errorAck('Room not found'));
+      return;
+    }
+
+    if (room.hostPlayerId !== payload.hostPlayerId) {
+      ack(errorAck('Only host can kick players'));
+      return;
+    }
+
+    if (room.phase !== 'lobby') {
+      ack(errorAck('Players can only be kicked in lobby'));
+      return;
+    }
+
+    if (payload.targetPlayerId === room.hostPlayerId) {
+      ack(errorAck('Host cannot kick themselves'));
+      return;
+    }
+
+    const targetPlayer = room.players.find((entry) => entry.id === payload.targetPlayerId);
+    if (!targetPlayer) {
+      ack(errorAck('Player not found in room'));
+      return;
+    }
+
+    removePlayerFromRoom(room, targetPlayer.id);
+    disconnectPlayerSockets(room.id, targetPlayer.id);
     room.updatedAt = Date.now();
 
     const state = publicState(room);
@@ -316,6 +416,8 @@ io.on('connection', (socket) => {
       }
     }
 
+    schedulePlayerDisconnectTimeout(room.id, player.id);
+
     room.updatedAt = Date.now();
     io.to(room.id).emit('room:state', publicState(room));
   });
@@ -363,6 +465,80 @@ function randomRoomCode(): RoomId {
 
 function normalizeRoomCode(roomId: string): RoomId {
   return roomId.trim().toUpperCase();
+}
+
+function playerTimerKey(roomId: RoomId, playerId: PlayerId): string {
+  return `${roomId}:${playerId}`;
+}
+
+function clearPlayerDisconnectTimer(roomId: RoomId, playerId: PlayerId): void {
+  const key = playerTimerKey(roomId, playerId);
+  const timeout = playerDisconnectTimers.get(key);
+  if (!timeout) {
+    return;
+  }
+
+  clearTimeout(timeout);
+  playerDisconnectTimers.delete(key);
+}
+
+function schedulePlayerDisconnectTimeout(roomId: RoomId, playerId: PlayerId): void {
+  clearPlayerDisconnectTimer(roomId, playerId);
+
+  const timeout = setTimeout(() => {
+    playerDisconnectTimers.delete(playerTimerKey(roomId, playerId));
+
+    const room = rooms.get(roomId);
+    if (!room) {
+      return;
+    }
+
+    const player = room.players.find((entry) => entry.id === playerId);
+    if (!player || player.connected) {
+      return;
+    }
+
+    removePlayerFromRoom(room, playerId);
+    room.updatedAt = Date.now();
+    io.to(room.id).emit('room:state', publicState(room));
+  }, PLAYER_REJOIN_TIMEOUT_MS);
+
+  playerDisconnectTimers.set(playerTimerKey(roomId, playerId), timeout);
+}
+
+function removePlayerFromRoom(room: InternalRoom, playerId: PlayerId): void {
+  clearPlayerDisconnectTimer(room.id, playerId);
+  room.players = room.players.filter((entry) => entry.id !== playerId);
+  room.playerProgress = room.playerProgress.filter((entry) => entry.playerId !== playerId);
+  room.guesses = room.guesses.filter((entry) => entry.playerId !== playerId);
+
+  if (!room.players.length) {
+    clearRoomTimer(room.id);
+    rooms.delete(room.id);
+    return;
+  }
+
+  if (room.hostPlayerId === playerId) {
+    const nextHost = room.players.find((entry) => entry.connected) ?? room.players[0];
+    room.hostPlayerId = nextHost.id;
+  }
+}
+
+function disconnectPlayerSockets(roomId: RoomId, playerId: PlayerId): void {
+  for (const [socketId, session] of socketSessions.entries()) {
+    if (session.roomId !== roomId || session.playerId !== playerId) {
+      continue;
+    }
+
+    socketSessions.delete(socketId);
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) {
+      continue;
+    }
+
+    socket.emit('room:error', { code: 'KICKED', message: 'Du wurdest aus dem Raum entfernt.' });
+    socket.disconnect(true);
+  }
 }
 
 function loadWordList(filePath: string): string[] {

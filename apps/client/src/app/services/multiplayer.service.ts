@@ -5,6 +5,7 @@ import type {
   CreateRoomPayload,
   GuessCell,
   JoinRoomPayload,
+  KickPlayerPayload,
   RoomStateSnapshot,
   ServerToClientEvents,
   StartRoundPayload,
@@ -28,9 +29,11 @@ export class MultiplayerService {
 
   private readonly roomStateSubject = new BehaviorSubject<RoomStateSnapshot | null>(null);
   private readonly serverErrorSubject = new BehaviorSubject<string>('');
+  private readonly kickedSubject = new BehaviorSubject<string>('');
 
   readonly roomState$ = this.roomStateSubject.asObservable();
   readonly serverError$ = this.serverErrorSubject.asObservable();
+  readonly kicked$ = this.kickedSubject.asObservable();
 
   constructor() {
     this.socket = io(this.getServerUrl(), {
@@ -43,7 +46,11 @@ export class MultiplayerService {
     });
 
     this.socket.on('room:error', (error) => {
-      this.serverErrorSubject.next(error.message || 'Serverfehler');
+      const message = error.message || 'Serverfehler';
+      if (error.code === 'KICKED') {
+        this.kickedSubject.next(message);
+      }
+      this.serverErrorSubject.next(message);
     });
   }
 
@@ -59,10 +66,24 @@ export class MultiplayerService {
     return data;
   }
 
+  async kickPlayer(payload: KickPlayerPayload): Promise<RoomStateSnapshot> {
+    const data: StateResponse = await this.emitWithAck('room:kick-player', payload);
+    this.roomStateSubject.next(data.state);
+    return data.state;
+  }
+
   async updateSettings(payload: UpdateRoomSettingsPayload): Promise<RoomStateSnapshot> {
     const data: StateResponse = await this.emitWithAck('room:update-settings', payload);
     this.roomStateSubject.next(data.state);
     return data.state;
+  }
+
+  disconnectSocket(): void {
+    try {
+      this.socket.disconnect();
+    } catch {
+      // ignore
+    }
   }
 
   async startRound(payload: StartRoundPayload): Promise<RoomStateSnapshot> {
@@ -85,6 +106,10 @@ export class MultiplayerService {
 
   clearServerError(): void {
     this.serverErrorSubject.next('');
+  }
+
+  clearKickedNotice(): void {
+    this.kickedSubject.next('');
   }
 
   private getServerUrl(): string {

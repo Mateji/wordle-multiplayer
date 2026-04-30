@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { PlayerSummary, RoomStateSnapshot } from '@wordle/shared';
+import type { PlayerId, PlayerSummary, RoomStateSnapshot } from '@wordle/shared';
 
 type LobbySettings = {
   wordLength: number;
@@ -24,4 +24,7 @@ export class LobbyScreenComponent {
 
   @Output() readonly updateLobbySettings = new EventEmitter<void>();
   @Output() readonly startRound = new EventEmitter<void>();
+  @Output() readonly copyRoomLink = new EventEmitter<void>();
+  @Output() readonly leaveLobby = new EventEmitter<void>();
+  @Output() readonly kickPlayer = new EventEmitter<PlayerId>();
 }

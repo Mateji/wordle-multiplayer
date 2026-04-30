@@ -61,6 +61,5 @@ pnpm test
 
 
 ## Todos
-- Define Host/Join privileges like start new game, kick, and change host
 - Reconnect Handling after disconnect
-- add copy room code button
+- Sort Playerlist in game screen so that the ones with the most green > yellow are sorted to the top, live updates to that list
