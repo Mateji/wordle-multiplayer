@@ -1,3 +1,10 @@
+:host {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex: 1;
+}
+
 .topbar {
   --topbar-height: 48px;
   left: 0;
@@ -15,7 +22,14 @@
   z-index: 5;
 }
 
-.new-game {
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-game,
+.lobby-back {
   border: 1px solid #cfd6df;
   background: #ffffff;
   color: #1e2329;
@@ -26,7 +40,13 @@
   cursor: pointer;
 }
 
-.new-game:hover {
+.lobby-back {
+  border-color: #b7c8dc;
+  background: #f4f8fd;
+}
+
+.new-game:hover,
+.lobby-back:hover {
   border-color: #9aa7b4;
 }
 
@@ -126,33 +146,48 @@
 }
 
 form {
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
   width: 100%;
-  max-width: 560px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   align-items: stretch;
   box-sizing: border-box;
   padding-inline: 10px;
 }
 
+.control-spacer {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.control-container {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  min-height: 0;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .wordle-container {
+  flex: 1 1 auto;
   width: 100%;
   max-width: 100%;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   padding-top: 12px;
   padding-bottom: 12px;
   box-sizing: border-box;
 }
 
 .status-row {
+  flex: 0 0 auto;
   height: 40px;
   display: flex;
   align-items: center;
@@ -160,12 +195,13 @@ form {
 }
 
 .keyboard-container {
+  flex: 0 0 auto;
   padding: 10px 0 16px;
 }
 
 .letter-container {
   width: fit-content;
-  margin: 0 auto;
+  margin: auto auto 0;
   display: flex;
   flex-direction: column;
   gap: 10px;

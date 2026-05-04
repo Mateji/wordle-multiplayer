@@ -22,9 +22,18 @@ export class LobbyScreenComponent {
   @Input() isBusy = false;
   @Input() settingsForm!: LobbySettings;
 
+  get isRoundRunning(): boolean {
+    return this.roomState?.phase === 'in-game' && this.roomState.round.status === 'running';
+  }
+
+  get isSettingsDisabled(): boolean {
+    return !this.isHost || this.isBusy || this.isRoundRunning;
+  }
+
   @Output() readonly updateLobbySettings = new EventEmitter<void>();
   @Output() readonly startRound = new EventEmitter<void>();
   @Output() readonly copyRoomLink = new EventEmitter<void>();
+  @Output() readonly returnToGame = new EventEmitter<void>();
   @Output() readonly leaveLobby = new EventEmitter<void>();
   @Output() readonly kickPlayer = new EventEmitter<PlayerId>();
 }

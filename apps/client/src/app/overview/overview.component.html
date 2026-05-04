@@ -43,6 +43,7 @@
         (startRound)="onStartRound()"
         (kickPlayer)="onKickPlayer($event)"
         (copyRoomLink)="onCopyRoomLink()"
+        (returnToGame)="onReturnToGame()"
         (leaveLobby)="onLeaveLobby()"
       ></app-lobby-screen>
     }
@@ -59,13 +60,12 @@
         [isGameInputEnabled]="isGameInputEnabled"
         [invalidWordVisible]="invalidWordVisible"
         [invalidWordMessage]="invalidWordMessage"
-        [topOffset]="topOffset"
-        [wordleMaxHeight]="wordleMaxHeight"
         [getProgressCells]="getProgressCells.bind(this)"
         [isCurrentPlayer]="isCurrentPlayer.bind(this)"
         [isProgressCellFlashing]="isProgressCellFlashing.bind(this)"
         (keyPressed)="onKeyboardKey($event)"
         (submitted)="onSubmit($event)"
+        (returnToLobby)="onReturnToLobby()"
         (newGame)="onNewGame()"
       ></app-game-screen>
     }
@@ -87,12 +87,12 @@
           <p class="next-round">Bereit fuer die naechste Runde?</p>
           <div class="popup-actions">
             <button type="button" class="play-again" (click)="onPlayAgain()">Neue Runde starten</button>
-            <button type="button" class="cancel" (click)="onCloseWinPopup()">Schliessen</button>
+            <button type="button" class="cancel" (click)="onReturnToLobby()">Zurueck zur Lobby</button>
           </div>
         } @else {
           <p class="next-round">Warte auf den Host fuer die naechste Runde.</p>
           <div class="popup-actions">
-            <button type="button" class="cancel" (click)="onCloseWinPopup()">Schliessen</button>
+            <button type="button" class="cancel" (click)="onReturnToLobby()">Zurueck zur Lobby</button>
           </div>
         }
       </div>

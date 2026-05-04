@@ -73,7 +73,9 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   invalidWordVisible = false;
 
   topOffset = 0;
+  wordleHeight = 0;
   wordleMaxHeight = 9999;
+  wordleOverflowY: 'hidden' | 'auto' = 'hidden';
 
   nowTimestamp = Date.now();
 
@@ -86,6 +88,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private pendingFocusIndex: number | null = null;
   private baseWordleHeight = 0;
   private readonly rowToKeyboardGap = 12;
+  private readonly overflowEnableThresholdPx = 2;
+  private readonly overflowDisableThresholdPx = -2;
   private layoutRaf: number | null = null;
 
   private invalidWordTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -103,6 +107,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private pendingRoomIdFromLink = '';
   private requiresNameForRoomLink = false;
   private suppressNextRouteAutoJoin = false;
+  private preferLobbyDuringGame = false;
+  private preferLobbyAfterFinish = false;
   private kickedBannerTimeout: ReturnType<typeof setTimeout> | null = null;
   kickedDialogMessage = '';
   linkCopiedMessage = '';
@@ -409,11 +415,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       const response = await this.multiplayer.createRoom({
         playerName: this.playerName,
-        settings: {
-          wordLength: this.settingsForm.wordLength,
-          maxGuesses: this.settingsForm.maxGuesses,
-          timeLimitSeconds: this.settingsForm.timeLimitSeconds,
-        },
+        settings: this.currentLobbySettingsPayload(),
       });
       this.playerId = response.playerId;
       this.roomId = response.roomId;
@@ -491,11 +493,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       await this.multiplayer.updateSettings({
         roomId: this.roomState.id,
         playerId: this.playerId,
-        settings: {
-          wordLength: this.settingsForm.wordLength,
-          maxGuesses: this.settingsForm.maxGuesses,
-          timeLimitSeconds: this.settingsForm.timeLimitSeconds,
-        },
+        settings: this.currentLobbySettingsPayload(),
       });
     } catch (error) {
       this.actionError = error instanceof Error ? error.message : 'Einstellungen konnten nicht gespeichert werden.';
@@ -513,7 +511,18 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isBusy = true;
 
     try {
-      await this.multiplayer.startRound({ roomId: this.roomState.id, playerId: this.playerId });
+      const roomId = this.roomState.id;
+      const playerId = this.playerId;
+
+      // Keep start behavior robust: use the current lobby form values even when
+      // the host starts directly without pressing "Einstellungen speichern" first.
+      await this.multiplayer.updateSettings({
+        roomId,
+        playerId,
+        settings: this.currentLobbySettingsPayload(),
+      });
+
+      await this.multiplayer.startRound({ roomId, playerId });
     } catch (error) {
       this.actionError = error instanceof Error ? error.message : 'Runde konnte nicht gestartet werden.';
     } finally {
@@ -602,14 +611,33 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
         roomId: this.roomState.id,
         playerId: this.playerId,
       });
+      this.preferLobbyDuringGame = false;
+      this.preferLobbyAfterFinish = false;
       this.showWinPopup = false;
     } catch (error) {
       this.actionError = error instanceof Error ? error.message : 'Neue Runde konnte nicht gestartet werden.';
     }
   }
 
-  onCloseWinPopup(): void {
+  onReturnToLobby(): void {
+    if (this.roomState?.phase === 'in-game') {
+      this.preferLobbyDuringGame = true;
+    }
+    if (this.roomState?.phase === 'finished') {
+      this.preferLobbyAfterFinish = true;
+    }
     this.showWinPopup = false;
+    this.mode = 'lobby';
+  }
+
+  onReturnToGame(): void {
+    if (this.roomState?.phase !== 'in-game') {
+      return;
+    }
+
+    this.preferLobbyDuringGame = false;
+    this.mode = 'game';
+    this.scheduleLayoutUpdate();
   }
 
   async onNewGame(): Promise<void> {
@@ -623,6 +651,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.playerId = '';
     this.roomState = null;
     this.currentRoundId = '';
+    this.preferLobbyDuringGame = false;
+    this.preferLobbyAfterFinish = false;
     this.showWinPopup = false;
     this.gameOver = false;
     this.actionError = '';
@@ -651,6 +681,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.playerId = '';
     this.roomState = null;
     this.currentRoundId = '';
+    this.preferLobbyDuringGame = false;
+    this.preferLobbyAfterFinish = false;
     this.showWinPopup = false;
     this.gameOver = false;
     this.isBusy = false;
@@ -725,6 +757,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.detectProgressFlashes(previousState, state);
 
     if (state.phase === 'lobby') {
+      this.preferLobbyDuringGame = false;
+      this.preferLobbyAfterFinish = false;
       this.mode = 'lobby';
       this.showWinPopup = false;
       this.gameOver = false;
@@ -734,7 +768,10 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.mode = 'game';
+    const keepLobbyView =
+      (state.phase === 'in-game' && this.preferLobbyDuringGame) ||
+      (state.phase === 'finished' && (this.preferLobbyAfterFinish || this.preferLobbyDuringGame));
+    this.mode = keepLobbyView ? 'lobby' : 'game';
 
     if (this.currentRoundId !== state.round.id) {
       this.currentRoundId = state.round.id;
@@ -744,6 +781,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (state.phase === 'in-game' && state.round.status === 'running') {
+      this.preferLobbyAfterFinish = false;
       this.startTicker();
       this.gameOver = false;
     }
@@ -751,7 +789,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     if (state.phase === 'finished') {
       this.gameOver = true;
       this.clearTicker();
-      this.showWinPopup = true;
+      this.showWinPopup = !(this.preferLobbyAfterFinish || this.preferLobbyDuringGame);
       const winner = state.players.find((player) => player.id === state.round.winnerPlayerId);
       if (winner) {
         this.winMessage = `${winner.name} hat die Runde gewonnen.`;
@@ -789,7 +827,10 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
     setTimeout(() => {
       const newRow = this.rows[this.activeRow];
-      if (newRow) newRow.enter = false;
+      if (newRow) {
+        newRow.enter = false;
+      }
+      this.scheduleLayoutUpdate();
     }, 320);
 
     this.pendingFocusIndex = this.activeRow * this.currentWordLength;
@@ -812,6 +853,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     ];
     this.activeRow = 0;
     this.baseWordleHeight = 0;
+    this.wordleOverflowY = 'hidden';
 
     this.pendingFocusIndex = 0;
     setTimeout(() => {
@@ -956,28 +998,50 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private updateDynamicLayout(): void {
     const form = this.gameScreen?.gameForm?.nativeElement;
+    const lettersContainer = this.gameScreen?.lettersContainer?.nativeElement;
     const keyboard = this.gameScreen?.keyboardHost?.nativeElement;
     const rows = this.gameScreen?.letterRows?.nativeElement;
-    if (!form || !keyboard || !rows) return;
+    const statusRow = this.gameScreen?.statusRow?.nativeElement;
+    if (!form || !lettersContainer || !keyboard || !rows || !statusRow) return;
 
     const stageHeight = form.clientHeight;
     const keyboardHeight = keyboard.offsetHeight;
-    const naturalWordleHeight = rows.scrollHeight + 12;
+    const statusRowHeight = statusRow.offsetHeight;
+    const containerStyle = window.getComputedStyle(lettersContainer);
+    const paddingTop = Number.parseFloat(containerStyle.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(containerStyle.paddingBottom) || 0;
+    // scrollHeight is stable across transform animations (row-enter) and avoids
+    // transient overflow measurements that would briefly show a scrollbar.
+    const rowsHeight = rows.scrollHeight;
+    const naturalWordleHeight = rowsHeight + paddingTop + paddingBottom;
 
     if (this.baseWordleHeight === 0) {
       this.baseWordleHeight = naturalWordleHeight;
     }
 
-    const initialTopOffset = Math.max(
-      0,
-      (stageHeight - (this.baseWordleHeight + keyboardHeight + this.rowToKeyboardGap)) / 2,
-    );
-
+    const initialBlockHeight =
+      this.baseWordleHeight + statusRowHeight + keyboardHeight + this.rowToKeyboardGap;
+    const initialTopOffset = Math.max(0, (stageHeight - initialBlockHeight) / 2);
     const growth = Math.max(0, naturalWordleHeight - this.baseWordleHeight);
-    this.topOffset = Math.max(0, initialTopOffset - growth);
 
-    const maxHeight = stageHeight - keyboardHeight - this.rowToKeyboardGap - this.topOffset;
-    this.wordleMaxHeight = Math.max(60, Math.ceil(maxHeight) + 4);
+    // Grow the visible input+keyboard block in both directions: half of the
+    // added row height is consumed by top slack, the other half moves downward.
+    this.topOffset = Math.max(0, Math.floor(initialTopOffset - growth / 2));
+
+    const maxHeight =
+      stageHeight - keyboardHeight - statusRowHeight - this.rowToKeyboardGap - this.topOffset;
+    this.wordleMaxHeight = Math.max(60, Math.floor(maxHeight));
+
+    const overflowDelta = naturalWordleHeight - this.wordleMaxHeight;
+    if (this.wordleOverflowY === 'auto') {
+      if (overflowDelta <= this.overflowDisableThresholdPx) {
+        this.wordleOverflowY = 'hidden';
+      }
+    } else if (overflowDelta >= this.overflowEnableThresholdPx) {
+      this.wordleOverflowY = 'auto';
+    }
+
+    this.wordleHeight = Math.max(60, Math.min(Math.ceil(naturalWordleHeight + 1), this.wordleMaxHeight));
   }
 
   private startTicker(): void {
@@ -1220,12 +1284,26 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     return code.trim().toLocaleUpperCase('de-DE');
   }
 
+  private currentLobbySettingsPayload(): {
+    wordLength: number;
+    maxGuesses: number;
+    timeLimitSeconds: number;
+  } {
+    return {
+      wordLength: Math.round(Number(this.settingsForm.wordLength)),
+      maxGuesses: Math.round(Number(this.settingsForm.maxGuesses)),
+      timeLimitSeconds: Math.round(Number(this.settingsForm.timeLimitSeconds)),
+    };
+  }
+
   private async handleKicked(message: string): Promise<void> {
     this.mode = 'entry';
     this.roomId = '';
     this.playerId = '';
     this.roomState = null;
     this.currentRoundId = '';
+    this.preferLobbyDuringGame = false;
+    this.preferLobbyAfterFinish = false;
     this.showWinPopup = false;
     this.gameOver = false;
     this.isBusy = false;

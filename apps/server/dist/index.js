@@ -124,7 +124,9 @@ io.on('connection', (socket) => {
             return;
         }
         const reconnectPlayerId = payload.reconnectPlayerId?.trim();
-        const reconnectPlayer = reconnectPlayerId ? room.players.find((entry) => entry.id === reconnectPlayerId) : undefined;
+        const reconnectPlayer = reconnectPlayerId
+            ? room.players.find((entry) => entry.id === reconnectPlayerId)
+            : undefined;
         let playerId;
         if (reconnectPlayer) {
             reconnectPlayer.connected = true;
@@ -154,8 +156,9 @@ io.on('connection', (socket) => {
             ack(errorAck('Only host can update settings'));
             return;
         }
-        if (room.phase !== 'lobby') {
-            ack(errorAck('Settings can only be changed in lobby'));
+        const roundIsRunning = room.phase === 'in-game' && room.round.status === 'running';
+        if (roundIsRunning) {
+            ack(errorAck('Settings can only be changed after the active round has ended'));
             return;
         }
         const nextSettings = sanitizeSettings(payload.settings, room.settings);
@@ -164,7 +167,10 @@ io.on('connection', (socket) => {
             return;
         }
         room.settings = nextSettings;
+        room.phase = 'lobby';
         room.playerProgress = room.players.map((player) => emptyProgress(player.id, nextSettings.wordLength));
+        room.guesses = [];
+        room.secretWord = '';
         room.round = {
             id: room.round.id,
             status: 'idle',

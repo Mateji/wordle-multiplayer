@@ -31,71 +31,96 @@
         Lobby verlassen
       </button>
     </div>
-    
+
     <div class="lobby-panels">
-      <article class="lobby-panel settings-panel" aria-labelledby="settings-title">
-        <div class="lobby-panel-title-wrap">
-          <h3 id="settings-title" class="punk-input-label lobby-panel-title">Einstellungen</h3>
-        </div>
-
-        <label class="lobby-field">
-          <span class="lobby-field-label">Buchstaben</span>
-          <div class="field-with-icon">
-            <img class="field-icon" src="/assets/icons/icon_letter.png" alt="" aria-hidden="true" />
-            <input
-              class="punk-input"
-              type="number"
-              min="3"
-              max="7"
-              [(ngModel)]="settingsForm.wordLength"
-              [disabled]="!isHost || isBusy"
-            />
+      <div class="settings-column">
+        <article class="lobby-panel settings-panel" aria-labelledby="settings-title">
+          <div class="lobby-panel-title-wrap">
+            <h3 id="settings-title" class="punk-input-label lobby-panel-title">Einstellungen</h3>
           </div>
-        </label>
 
-        <label class="lobby-field">
-          <span class="lobby-field-label">Zeitlimit (Sek.)</span>
-          <div class="field-with-icon">
-            <img class="field-icon" src="/assets/icons/icon_clock.png" alt="" aria-hidden="true" />
-            <select class="punk-input" [(ngModel)]="settingsForm.timeLimitSeconds" [disabled]="!isHost || isBusy">
-              <option [ngValue]="0">Ohne Zeitlimit</option>
-              <option [ngValue]="60">1 Minute</option>
-              <option [ngValue]="120">2 Minuten</option>
-              <option [ngValue]="180">3 Minuten</option>
-              <option [ngValue]="240">4 Minuten</option>
-              <option [ngValue]="300">5 Minuten</option>
-            </select>
-          </div>
-        </label>
+          <label class="lobby-field">
+            <span class="lobby-field-label">Buchstaben</span>
+            <div class="field-with-icon">
+              <img class="field-icon" src="/assets/icons/icon_letter.png" alt="" aria-hidden="true" />
+              <input
+                class="punk-input"
+                type="number"
+                min="3"
+                max="7"
+                [(ngModel)]="settingsForm.wordLength"
+                [disabled]="isSettingsDisabled"
+              />
+            </div>
+          </label>
 
-        <label class="lobby-field">
-          <span class="lobby-field-label">Versuche</span>
-          <div class="field-with-icon">
-            <img class="field-icon" src="/assets/icons/icon_hash.png" alt="" aria-hidden="true" />
-            <input
-              class="punk-input"
-              type="number"
-              min="1"
-              max="10"
-              [(ngModel)]="settingsForm.maxGuesses"
-              [disabled]="!isHost || isBusy"
-            />
-          </div>
-        </label>
+          <label class="lobby-field">
+            <span class="lobby-field-label">Zeitlimit (Sek.)</span>
+            <div class="field-with-icon">
+              <img class="field-icon" src="/assets/icons/icon_clock.png" alt="" aria-hidden="true" />
+              <select class="punk-input" [(ngModel)]="settingsForm.timeLimitSeconds" [disabled]="isSettingsDisabled">
+                <option [ngValue]="0">Ohne Zeitlimit</option>
+                <option [ngValue]="60">1 Minute</option>
+                <option [ngValue]="120">2 Minuten</option>
+                <option [ngValue]="180">3 Minuten</option>
+                <option [ngValue]="240">4 Minuten</option>
+                <option [ngValue]="300">5 Minuten</option>
+              </select>
+            </div>
+          </label>
 
-        @if (isHost) {
-          <div class="lobby-actions">
-            <button class="punk-button lobby-button-save" type="button" (click)="updateLobbySettings.emit()" [disabled]="isBusy">
-              Einstellungen speichern
+          <label class="lobby-field">
+            <span class="lobby-field-label">Versuche</span>
+            <div class="field-with-icon">
+              <img class="field-icon" src="/assets/icons/icon_hash.png" alt="" aria-hidden="true" />
+              <input
+                class="punk-input"
+                type="number"
+                min="1"
+                max="10"
+                [(ngModel)]="settingsForm.maxGuesses"
+                [disabled]="isSettingsDisabled"
+              />
+            </div>
+          </label>
+
+          @if (isHost) {
+            <div class="lobby-actions">
+              <button
+                class="punk-button lobby-button-save"
+                type="button"
+                (click)="updateLobbySettings.emit()"
+                [disabled]="isBusy || isRoundRunning"
+              >
+                Einstellungen speichern
+              </button>
+              <button
+                class="punk-button lobby-button-start"
+                type="button"
+                (click)="startRound.emit()"
+                [disabled]="isBusy || isRoundRunning"
+              >
+                Runde starten
+              </button>
+            </div>
+          } @else {
+            <p class="hint">Nur der Host kann Einstellungen ändern und die Runde starten.</p>
+          }
+        </article>
+
+        @if (isRoundRunning) {
+          <div class="running-round-banner" role="status" aria-live="polite">
+            <span>Ein Spiel laeuft gerade.</span>
+            <button
+              type="button"
+              class="player-kick-button lobby-back-to-game-button"
+              (click)="returnToGame.emit()"
+            >
+              Zurueck ins Spiel
             </button>
-            <button class="punk-button lobby-button-start" type="button" (click)="startRound.emit()" [disabled]="isBusy">
-              Runde starten
-            </button>
           </div>
-        } @else {
-          <p class="hint">Nur der Host kann Einstellungen ändern und die Runde starten.</p>
         }
-      </article>
+      </div>
 
       <article class="lobby-panel players-panel" aria-labelledby="players-title">
         <div class="lobby-panel-title-wrap">

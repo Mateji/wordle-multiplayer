@@ -215,8 +215,9 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (room.phase !== 'lobby') {
-      ack(errorAck('Settings can only be changed in lobby'));
+    const roundIsRunning = room.phase === 'in-game' && room.round.status === 'running';
+    if (roundIsRunning) {
+      ack(errorAck('Settings can only be changed after the active round has ended'));
       return;
     }
 
@@ -227,7 +228,10 @@ io.on('connection', (socket) => {
     }
 
     room.settings = nextSettings;
+    room.phase = 'lobby';
     room.playerProgress = room.players.map((player) => emptyProgress(player.id, nextSettings.wordLength));
+    room.guesses = [];
+    room.secretWord = '';
     room.round = {
       id: room.round.id,
       status: 'idle',

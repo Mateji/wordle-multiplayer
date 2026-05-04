@@ -197,6 +197,40 @@
     font-size: 0.9rem;
 }
 
+.running-round-banner {
+    margin: 0;
+    margin-left: var(--lobby-panel-left-offset);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 3px solid var(--punk-ink);
+    border-radius: 12px;
+    background: var(--punk-magenta);
+    outline: 3px solid color-mix(in srgb, var(--punk-cyan) 74%, #ffffff 26%);
+    outline-offset: 2px;
+    box-shadow: 8px 9px 0 rgba(0, 0, 0, 0.3);
+    transform: rotate(-1deg);
+}
+
+.running-round-banner span {
+    font-family: var(--punk-font-display, Impact, sans-serif);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #111111;
+    font-size: 1rem;
+}
+
+.lobby-back-to-game-button {
+    padding: 6px 12px;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    background: #111111;
+    color: #fffaf0;
+    border-color: #111111;
+}
+
 .lobby-tape {
     pointer-events: none;
     top: 10px;
@@ -210,6 +244,12 @@
     gap: 20px;
     align-items: start;
     overflow-x: visible;
+}
+
+.settings-column {
+    display: grid;
+    gap: 16px;
+    align-items: start;
 }
 
 .lobby-panel {
@@ -566,6 +606,11 @@
         gap: 14px;
     }
 
+    .running-round-banner {
+        margin-left: 0;
+        transform: none;
+    }
+
     .settings-panel,
     .players-panel {
         transform: none;
@@ -595,6 +640,11 @@
 
     .lobby-kicker {
         left: 12px;
+    }
+
+    .running-round-banner {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .lobby-panel {
