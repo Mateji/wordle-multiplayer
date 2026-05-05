@@ -58,8 +58,82 @@ Run all tests:
 pnpm test
 ```
 
+## Deployment
+
+The client resolves the multiplayer server origin in this order:
+
+- `window.__WORDLE_SERVER_URL__`, if you define it before the Angular app boots
+- `http://<current-host>:3001` during local browser development on `localhost`, `127.0.0.1`, or `::1`
+- the current browser origin for deployed environments
+
+That means a reverse-proxy setup on one shared origin works without extra client changes. If the Socket.IO server lives on a different origin, inject the override before the app starts, for example in the page shell:
+
+```html
+<script>
+	window.__WORDLE_SERVER_URL__ = 'https://api.example.com';
+</script>
+```
+
+The server keeps localhost origins open by default for local development. For deployed environments, set a comma-separated allowlist:
+
+```bash
+CORS_ALLOWED_ORIGINS=https://wordle.example.com,https://www.wordle.example.com
+```
+
+The server port stays configurable through `PORT` and defaults to `3001`.
+
+### Docker Compose workflow
+
+This repository now includes production Docker files for both apps and a root `docker-compose.yml`.
+
+Build and start the full stack locally or on a server:
+
+```bash
+pnpm docker:deploy
+```
+
+That command runs the workspace build first and then starts Docker Compose with a rebuild.
+
+The available root helper scripts are:
+
+```bash
+pnpm docker:build
+pnpm docker:up
+pnpm docker:up:build
+pnpm docker:down
+pnpm docker:logs
+pnpm docker:deploy
+```
+
+Recommended server update workflow:
+
+```bash
+git pull
+pnpm docker:deploy
+```
+
+The Compose setup works like this:
+
+- `client`: Nginx serves the Angular build from `apps/client/dist/wordle/browser`
+- `server`: Node runs the compiled backend from `apps/server/dist/index.js`
+- Nginx proxies `/socket.io`, `/rooms`, and `/health` to the Node container
+
+For deployed environments, set your allowed browser origin before starting Compose:
+
+```bash
+export CORS_ALLOWED_ORIGINS=https://wordle.example.com
+pnpm docker:deploy
+```
+
+Notes:
+
+- the server keeps room state only in memory, so container restarts reset active rooms
+- for HTTPS, place a reverse proxy such as Caddy, Traefik, or Nginx in front of the `client` service, or adapt the Compose file to publish `443`
+
 
 
 ## Todos
 - Reconnect Handling after disconnect
 - Sort Playerlist in game screen so that the ones with the most green > yellow are sorted to the top, live updates to that list
+- Players that use all of their guesses are "killed" - add strikethrough in playerlist in lobby and let them watch the rest
+- Maybe add a observer screen, where killed players, or winners can watch the others

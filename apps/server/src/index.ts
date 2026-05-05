@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
@@ -32,6 +33,7 @@ interface InternalRoom {
   guesses: GuessEntry[];
   updatedAt: number;
   secretWord: string;
+  reconnectSecrets: Map<PlayerId, string>;
 }
 
 type WordFilePayload = string[] | { data?: unknown };
@@ -50,10 +52,13 @@ const MAX_MAX_GUESSES = 10;
 const ALLOWED_TIME_LIMITS_SECONDS = new Set([0, 60, 120, 180, 240, 300]);
 const SUPPORTED_WORD_LENGTHS = [3, 4, 5, 6, 7];
 const PLAYER_REJOIN_TIMEOUT_MS = 2 * 60 * 1000;
+const ROUND_START_COUNTDOWN_MS = 5_000;
 
 const rooms = new Map<RoomId, InternalRoom>();
 const roomTimers = new Map<RoomId, ReturnType<typeof setTimeout>>();
-const socketSessions = new Map<string, { roomId: RoomId; playerId: PlayerId }>();
+type SocketSession = { roomId: RoomId; playerId: PlayerId };
+
+const socketSessions = new Map<string, SocketSession>();
 const playerDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -63,11 +68,12 @@ const assetsDir = path.resolve(__dirname, '../../client/src/assets');
 const targetWordsByLength = loadTargetWordsByLength();
 const allowedWordsByLength = loadAllowedWordsByLength();
 const availableWordLengths = new Set<number>(targetWordsByLength.keys());
-const allowedCorsOrigins = [
+const localCorsOriginPatterns = [
   /^https?:\/\/localhost(?::\d+)?$/,
   /^https?:\/\/127\.0\.0\.1(?::\d+)?$/,
   /^https?:\/\/\[::1\](?::\d+)?$/,
 ];
+const configuredCorsOrigins = parseConfiguredCorsOrigins(process.env.CORS_ALLOWED_ORIGINS);
 
 const isAllowedCorsOrigin = (origin?: string): boolean => {
   if (!origin) {
@@ -78,7 +84,16 @@ const isAllowedCorsOrigin = (origin?: string): boolean => {
     return true;
   }
 
-  return allowedCorsOrigins.some((pattern) => pattern.test(origin));
+  const normalizedOrigin = normalizeCorsOrigin(origin);
+  if (!normalizedOrigin) {
+    return false;
+  }
+
+  if (configuredCorsOrigins.size > 0) {
+    return configuredCorsOrigins.has(normalizedOrigin);
+  }
+
+  return localCorsOriginPatterns.some((pattern) => pattern.test(normalizedOrigin));
 };
 
 const app = express();
@@ -109,13 +124,37 @@ app.get('/rooms/:roomId', (req, res) => {
 const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: true,
+    origin(origin, callback) {
+      const isAllowed = isAllowedCorsOrigin(origin);
+      callback(isAllowed ? null : new Error('CORS origin not allowed'), isAllowed);
+    },
     methods: ['GET', 'POST'],
   },
   allowRequest: (req, callback) => {
     callback(null, isAllowedCorsOrigin(req.headers.origin));
   },
 });
+
+function parseConfiguredCorsOrigins(value?: string): Set<string> {
+  if (!value) {
+    return new Set();
+  }
+
+  return new Set(
+    value
+      .split(',')
+      .map((entry) => normalizeCorsOrigin(entry.trim()))
+      .filter((entry): entry is string => !!entry),
+  );
+}
+
+function normalizeCorsOrigin(value: string): string | null {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
 
 io.on('connection', (socket) => {
   socket.on('room:create', (payload, ack) => {
@@ -139,7 +178,7 @@ io.on('connection', (socket) => {
       phase: 'lobby',
       hostPlayerId: playerId,
       settings,
-      players: [{ id: playerId, name: playerName, connected: true }],
+      players: [{ id: playerId, name: playerName, connected: true, wins: 0 }],
       round: {
         id: randomId('round'),
         status: 'idle',
@@ -151,6 +190,7 @@ io.on('connection', (socket) => {
       guesses: [],
       updatedAt: Date.now(),
       secretWord: '',
+      reconnectSecrets: new Map([[playerId, randomReconnectSecret()]]),
     };
 
     rooms.set(roomId, room);
@@ -158,7 +198,7 @@ io.on('connection', (socket) => {
     socket.join(roomId);
 
     const state = publicState(room);
-    ack(successAck({ roomId, playerId, state }));
+    ack(successAck({ roomId, playerId, reconnectSecret: room.reconnectSecrets.get(playerId) ?? '', state }));
     io.to(roomId).emit('room:state', state);
   });
 
@@ -177,20 +217,39 @@ io.on('connection', (socket) => {
     }
 
     const reconnectPlayerId = payload.reconnectPlayerId?.trim();
-    const reconnectPlayer = reconnectPlayerId
-      ? room.players.find((entry) => entry.id === reconnectPlayerId)
-      : undefined;
+    const reconnectSecret = payload.reconnectSecret?.trim();
+    let reconnectPlayer: PlayerSummary | undefined;
+    if (reconnectPlayerId) {
+      if (!reconnectSecret) {
+        ack(errorAck('Reconnect secret is required'));
+        return;
+      }
+
+      const knownSecret = room.reconnectSecrets.get(reconnectPlayerId);
+      if (!knownSecret || knownSecret !== reconnectSecret) {
+        ack(errorAck('Reconnect secret is invalid'));
+        return;
+      }
+
+      reconnectPlayer = room.players.find((entry) => entry.id === reconnectPlayerId);
+      if (!reconnectPlayer) {
+        ack(errorAck('Player not found in room'));
+        return;
+      }
+    }
 
     let playerId: PlayerId;
     if (reconnectPlayer) {
       reconnectPlayer.connected = true;
       reconnectPlayer.name = playerName;
       playerId = reconnectPlayer.id;
+      room.reconnectSecrets.set(playerId, randomReconnectSecret());
       clearPlayerDisconnectTimer(room.id, playerId);
     } else {
       playerId = randomId('player');
-      room.players.push({ id: playerId, name: playerName, connected: true });
+      room.players.push({ id: playerId, name: playerName, connected: true, wins: 0 });
       room.playerProgress.push(emptyProgress(playerId, room.settings.wordLength));
+      room.reconnectSecrets.set(playerId, randomReconnectSecret());
     }
 
     room.updatedAt = Date.now();
@@ -199,24 +258,43 @@ io.on('connection', (socket) => {
     socket.join(room.id);
 
     const state = publicState(room);
-    ack(successAck({ roomId: room.id, playerId, state }));
+    ack(successAck({ roomId: room.id, playerId, reconnectSecret: room.reconnectSecrets.get(playerId) ?? '', state }));
     io.to(room.id).emit('room:state', state);
   });
 
+  socket.on('room:leave', (payload, ack) => {
+    const authorized = assertPlayerInRoom(socket.id, payload.roomId);
+    if (!authorized.ok) {
+      ack(errorAck(authorized.error));
+      return;
+    }
+
+    const { room, playerId } = authorized;
+    room.updatedAt = Date.now();
+
+    socket.leave(room.id);
+    socketSessions.delete(socket.id);
+    removePlayerFromRoom(room, playerId);
+
+    ack(successAck({ roomId: room.id }));
+
+    const currentRoom = rooms.get(room.id);
+    if (currentRoom) {
+      io.to(currentRoom.id).emit('room:state', publicState(currentRoom));
+    }
+  });
+
   socket.on('room:update-settings', (payload, ack) => {
-    const room = rooms.get(payload.roomId);
-    if (!room) {
-      ack(errorAck('Room not found'));
+    const authorized = assertHostSocket(socket.id, payload.roomId);
+    if (!authorized.ok) {
+      ack(errorAck(authorized.error));
       return;
     }
 
-    if (room.hostPlayerId !== payload.playerId) {
-      ack(errorAck('Only host can update settings'));
-      return;
-    }
+    const { room } = authorized;
 
-    const roundIsRunning = room.phase === 'in-game' && room.round.status === 'running';
-    if (roundIsRunning) {
+    const roundIsActive = room.round.status === 'countdown' || room.round.status === 'running';
+    if (roundIsActive) {
       ack(errorAck('Settings can only be changed after the active round has ended'));
       return;
     }
@@ -247,18 +325,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('room:kick-player', (payload, ack) => {
-    const room = rooms.get(payload.roomId);
-    if (!room) {
-      ack(errorAck('Room not found'));
+    const authorized = assertHostSocket(socket.id, payload.roomId);
+    if (!authorized.ok) {
+      ack(errorAck(authorized.error));
       return;
     }
 
-    if (room.hostPlayerId !== payload.hostPlayerId) {
-      ack(errorAck('Only host can kick players'));
-      return;
-    }
+    const { room, playerId } = authorized;
 
-    if (room.phase !== 'lobby') {
+    if (room.phase !== 'lobby' || room.round.status === 'countdown') {
       ack(errorAck('Players can only be kicked in lobby'));
       return;
     }
@@ -274,6 +349,11 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (targetPlayer.id === playerId) {
+      ack(errorAck('Host cannot kick themselves'));
+      return;
+    }
+
     removePlayerFromRoom(room, targetPlayer.id);
     disconnectPlayerSockets(room.id, targetPlayer.id);
     room.updatedAt = Date.now();
@@ -284,14 +364,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('game:start', (payload, ack) => {
-    const room = rooms.get(payload.roomId);
-    if (!room) {
-      ack(errorAck('Room not found'));
+    const authorized = assertHostSocket(socket.id, payload.roomId);
+    if (!authorized.ok) {
+      ack(errorAck(authorized.error));
       return;
     }
 
-    if (room.hostPlayerId !== payload.playerId) {
-      ack(errorAck('Only host can start a round'));
+    const { room } = authorized;
+
+    if (room.round.status === 'countdown') {
+      ack(errorAck('Round is already starting'));
       return;
     }
 
@@ -308,17 +390,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('guess:submit', (payload, ack) => {
-    const room = rooms.get(payload.roomId);
-    if (!room) {
-      ack(errorAck('Room not found'));
+    const authorized = assertPlayerInRoom(socket.id, payload.roomId);
+    if (!authorized.ok) {
+      ack(errorAck(authorized.error));
       return;
     }
 
-    const player = room.players.find((entry) => entry.id === payload.playerId);
-    if (!player) {
-      ack(errorAck('Player not found in room'));
-      return;
-    }
+    const { room, playerId } = authorized;
 
     if (room.phase !== 'in-game' || room.round.status !== 'running') {
       ack(errorAck('Round is not running'));
@@ -336,31 +414,34 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (guessCountForPlayer(room, payload.playerId) >= room.settings.maxGuesses) {
+    if (guessCountForPlayer(room, playerId) >= room.settings.maxGuesses) {
       ack(errorAck('No guesses left for this round'));
       return;
     }
 
     const guess: GuessEntry = {
-      playerId: payload.playerId,
+      playerId,
       word: normalized,
       cells: evaluateGuess(normalized, room.secretWord),
       submittedAt: Date.now(),
     };
 
     room.guesses.push(guess);
-    const playerProgress = room.playerProgress.find((entry) => entry.playerId === payload.playerId);
+    const playerProgress = room.playerProgress.find((entry) => entry.playerId === playerId);
     if (playerProgress) {
       const currentCounts = countProgressCells(playerProgress);
       const guessCounts = countGuessCells(guess.cells);
       const nextCorrect = Math.max(currentCounts.correct, guessCounts.correct);
       const nextPresent = Math.max(currentCounts.present, guessCounts.present);
       applyProgressCounts(playerProgress, nextCorrect, nextPresent, room.settings.wordLength);
+      const guessesUsed = guessCountForPlayer(room, playerId);
+      playerProgress.guessesUsed = guessesUsed;
       playerProgress.solved = guess.cells.every((cell) => cell.state === 'correct');
+      playerProgress.exhausted = !playerProgress.solved && guessesUsed >= room.settings.maxGuesses;
       playerProgress.updatedAt = Date.now();
 
       if (playerProgress.solved) {
-        finishRound(room, 'solved', payload.playerId);
+        finishRound(room, 'solved', playerId);
       }
     }
 
@@ -376,14 +457,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('game:new', (payload, ack) => {
-    const room = rooms.get(payload.roomId);
-    if (!room) {
-      ack(errorAck('Room not found'));
+    const authorized = assertHostSocket(socket.id, payload.roomId);
+    if (!authorized.ok) {
+      ack(errorAck(authorized.error));
       return;
     }
 
-    if (room.hostPlayerId !== payload.playerId) {
-      ack(errorAck('Only host can start a new game'));
+    const { room } = authorized;
+
+    if (room.round.status === 'countdown') {
+      ack(errorAck('Round is already starting'));
       return;
     }
 
@@ -440,6 +523,62 @@ function errorAck<T>(error: string): Ack<T> {
   return { ok: false, error };
 }
 
+function getSessionForSocket(socketId: string): SocketSession | null {
+  return socketSessions.get(socketId) ?? null;
+}
+
+function getPlayerForSocket(room: InternalRoom, socketId: string): PlayerSummary | null {
+  const session = getSessionForSocket(socketId);
+  if (!session || session.roomId !== room.id) {
+    return null;
+  }
+
+  return room.players.find((entry) => entry.id === session.playerId) ?? null;
+}
+
+function assertPlayerInRoom(
+  socketId: string,
+  requestedRoomId: RoomId,
+): { ok: true; room: InternalRoom; playerId: PlayerId } | { ok: false; error: string } {
+  const session = getSessionForSocket(socketId);
+  if (!session) {
+    return { ok: false, error: 'Player session not found' };
+  }
+
+  const normalizedRoomId = normalizeRoomCode(requestedRoomId);
+  if (session.roomId !== normalizedRoomId) {
+    return { ok: false, error: 'Player is not in the requested room' };
+  }
+
+  const room = rooms.get(session.roomId);
+  if (!room) {
+    return { ok: false, error: 'Room not found' };
+  }
+
+  const player = getPlayerForSocket(room, socketId);
+  if (!player) {
+    return { ok: false, error: 'Player not found in room' };
+  }
+
+  return { ok: true, room, playerId: player.id };
+}
+
+function assertHostSocket(
+  socketId: string,
+  requestedRoomId: RoomId,
+): { ok: true; room: InternalRoom; playerId: PlayerId } | { ok: false; error: string } {
+  const authorized = assertPlayerInRoom(socketId, requestedRoomId);
+  if (!authorized.ok) {
+    return authorized;
+  }
+
+  if (authorized.room.hostPlayerId !== authorized.playerId) {
+    return { ok: false, error: 'Only host can perform this action' };
+  }
+
+  return authorized;
+}
+
 function publicState(room: InternalRoom): RoomStateSnapshot {
   const { secretWord, guesses, ...state } = room;
   return state;
@@ -450,12 +589,18 @@ function emptyProgress(playerId: PlayerId, wordLength: number): RoomStateSnapsho
     playerId,
     cells: Array.from({ length: wordLength }, () => ({ state: 'unset' })),
     solved: false,
+    guessesUsed: 0,
+    exhausted: false,
     updatedAt: Date.now(),
   };
 }
 
 function randomId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function randomReconnectSecret(): string {
+  return randomBytes(24).toString('base64url');
 }
 
 function randomRoomCode(): RoomId {
@@ -515,6 +660,7 @@ function removePlayerFromRoom(room: InternalRoom, playerId: PlayerId): void {
   room.players = room.players.filter((entry) => entry.id !== playerId);
   room.playerProgress = room.playerProgress.filter((entry) => entry.playerId !== playerId);
   room.guesses = room.guesses.filter((entry) => entry.playerId !== playerId);
+  room.reconnectSecrets.delete(playerId);
 
   if (!room.players.length) {
     clearRoomTimer(room.id);
@@ -648,19 +794,52 @@ function startRound(room: InternalRoom): void {
   clearRoomTimer(room.id);
 
   const now = Date.now();
-  const hasTimeLimit = room.settings.timeLimitSeconds > 0;
-  room.phase = 'in-game';
+  room.phase = 'lobby';
   room.round = {
     id: randomId('round'),
-    status: 'running',
-    startedAt: now,
-    endsAt: hasTimeLimit ? now + room.settings.timeLimitSeconds * 1000 : null,
+    status: 'countdown',
+    startedAt: now + ROUND_START_COUNTDOWN_MS,
+    endsAt: null,
     winnerPlayerId: null,
   };
   room.playerProgress = room.players.map((player) => emptyProgress(player.id, room.settings.wordLength));
   room.guesses = [];
   room.secretWord = randomTargetWord(room.settings.wordLength);
   room.updatedAt = now;
+
+  const roundId = room.round.id;
+  const timeout = setTimeout(() => {
+    activateRound(room.id, roundId);
+  }, ROUND_START_COUNTDOWN_MS);
+
+  roomTimers.set(room.id, timeout);
+}
+
+function activateRound(roomId: RoomId, roundId: string): void {
+  const room = rooms.get(roomId);
+  if (!room) {
+    return;
+  }
+
+  if (room.round.id !== roundId || room.round.status !== 'countdown') {
+    return;
+  }
+
+  clearRoomTimer(room.id);
+
+  const now = Date.now();
+  const hasTimeLimit = room.settings.timeLimitSeconds > 0;
+  room.phase = 'in-game';
+  room.round = {
+    ...room.round,
+    status: 'running',
+    startedAt: now,
+    endsAt: hasTimeLimit ? now + room.settings.timeLimitSeconds * 1000 : null,
+    winnerPlayerId: null,
+  };
+  room.updatedAt = now;
+
+  io.to(room.id).emit('room:state', publicState(room));
 
   if (hasTimeLimit) {
     const timeout = setTimeout(() => {
@@ -687,6 +866,14 @@ function finishRound(
   clearRoomTimer(room.id);
   room.round.status = status;
   room.round.winnerPlayerId = winnerPlayerId;
+
+  if (winnerPlayerId) {
+    const winner = room.players.find((player) => player.id === winnerPlayerId);
+    if (winner) {
+      winner.wins += 1;
+    }
+  }
+
   room.phase = 'finished';
   room.updatedAt = Date.now();
 }

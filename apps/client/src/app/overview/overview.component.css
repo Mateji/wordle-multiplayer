@@ -81,6 +81,83 @@
   z-index: 10;
 }
 
+.countdown-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at center, rgba(255, 244, 204, 0.22), transparent 45%),
+    rgba(8, 12, 16, 0.6);
+  backdrop-filter: blur(3px);
+  z-index: 12;
+}
+
+.countdown-card {
+  width: min(90vw, 480px);
+  padding: 28px 26px 30px;
+  border: 4px solid var(--punk-color-ink);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 247, 213, 0.98) 52%, rgba(255, 109, 182, 0.92) 100%);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.32),
+    10px 12px 0 rgba(0, 0, 0, 0.3);
+  text-align: center;
+  transform: rotate(-1.2deg);
+  animation: countdownCardSlam 420ms cubic-bezier(0.18, 0.82, 0.24, 1.18);
+}
+
+.countdown-eyebrow {
+  margin: 0;
+  font-family: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #141414;
+}
+
+.countdown-number-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 8px 0 4px;
+}
+
+.countdown-number,
+.countdown-number-shadow {
+  grid-area: 1 / 1;
+  font-family: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+  font-size: clamp(5.5rem, 18vw, 9.5rem);
+  line-height: 0.9;
+  letter-spacing: 0.05em;
+}
+
+.countdown-number-shadow {
+  transform: translate(8px, 8px);
+  color: rgba(20, 20, 20, 0.28);
+}
+
+.countdown-number {
+  color: #fffaf0;
+  -webkit-text-stroke: 4px #111111;
+  text-shadow:
+    0 0 0 #111111,
+    0 10px 22px rgba(0, 0, 0, 0.28);
+  animation: countdownPulse 900ms ease-in-out infinite;
+}
+
+.countdown-subline {
+  margin: 0;
+  font-family: var(--punk-font-ui, system-ui);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #15181c;
+}
+
 .popup {
   width: min(90vw, 420px);
   background: linear-gradient(180deg, #ffffff 0%, #f6f8fb 100%);
@@ -146,4 +223,28 @@
   border: 1px solid #cfd6df;
   background: #ffffff;
   color: #2a313a;
+}
+
+@keyframes countdownCardSlam {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.88) rotate(-4deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-1.2deg) scale(1);
+  }
+}
+
+@keyframes countdownPulse {
+  0%,
+  100% {
+    transform: scale(0.94) rotate(1deg);
+  }
+  45% {
+    transform: scale(1.04) rotate(-1deg);
+  }
+  70% {
+    transform: scale(0.99) rotate(0deg);
+  }
 }

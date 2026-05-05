@@ -200,6 +200,9 @@
 .running-round-banner {
     margin: 0;
     margin-left: var(--lobby-panel-left-offset);
+    inline-size: calc(100% + var(--lobby-panel-left-offset) - 12px);
+    max-width: calc(100% + var(--lobby-panel-left-offset) - 12px);
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -488,18 +491,51 @@
     color: var(--punk-ink);
 }
 
-.player-host-crown {
+.player-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.player-win-count {
+    color: #111111;
+    font-size: 0.96rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+
+.player-role-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    min-width: 64px;
+    padding: 3px 10px;
+    border: 2px solid var(--punk-ink);
     border-radius: 999px;
-    border: 2px solid color-mix(in srgb, var(--punk-color-yellow, #ffe34f) 55%, #8d6d00);
-    background: color-mix(in srgb, var(--punk-color-yellow, #ffe34f) 78%, white 22%);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.player-role-badge--host {
+    border-color: color-mix(in srgb, var(--punk-color-magenta, #ff2f9f) 55%, #5d143e);
+    background: color-mix(in srgb, var(--punk-color-magenta, #ff2f9f) 76%, white 24%);
+    color: #5b1038;
+}
+
+.player-role-badge--winner {
+    border-color: color-mix(in srgb, var(--punk-color-yellow, #ffe34f) 56%, #7f6300);
+    background: color-mix(in srgb, var(--punk-color-yellow, #ffe34f) 80%, white 20%);
     color: #6b4f00;
-    font-size: 0.82rem;
-    line-height: 1;
+    min-width: 28px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 0.9rem;
 }
 
 .player-kick-button {
@@ -608,6 +644,8 @@
 
     .running-round-banner {
         margin-left: 0;
+        inline-size: 100%;
+        max-width: 100%;
         transform: none;
     }
 

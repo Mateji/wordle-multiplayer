@@ -26,8 +26,12 @@ export class LobbyScreenComponent {
     return this.roomState?.phase === 'in-game' && this.roomState.round.status === 'running';
   }
 
+  get isRoundStarting(): boolean {
+    return this.roomState?.round.status === 'countdown';
+  }
+
   get isSettingsDisabled(): boolean {
-    return !this.isHost || this.isBusy || this.isRoundRunning;
+    return !this.isHost || this.isBusy || this.isRoundRunning || this.isRoundStarting;
   }
 
   @Output() readonly updateLobbySettings = new EventEmitter<void>();

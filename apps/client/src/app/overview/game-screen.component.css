@@ -28,7 +28,6 @@
   gap: 8px;
 }
 
-.new-game,
 .lobby-back {
   border: 1px solid #cfd6df;
   background: #ffffff;
@@ -45,7 +44,6 @@
   background: #f4f8fd;
 }
 
-.new-game:hover,
 .lobby-back:hover {
   border-color: #9aa7b4;
 }
@@ -89,16 +87,56 @@
   background: #f1f8ff;
 }
 
+.progress-row.exhausted {
+  border-color: #d8b1b1;
+  background: #fff5f5;
+}
+
+.progress-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .progress-row .name {
   font-size: 13px;
   font-weight: 700;
   color: #233042;
 }
 
+.progress-status {
+  padding: 3px 8px;
+  border: 1px solid #d24b4b;
+  border-radius: 999px;
+  background: #fff0f0;
+  color: #a32f2f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.progress-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .progress-cells {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.guess-usage {
+  min-width: 3.6rem;
+  text-align: right;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #233042;
 }
 
 .progress-cell {
@@ -145,6 +183,20 @@
   font-weight: 600;
 }
 
+.player-status-banner {
+  margin: 12px 16px 0;
+  padding: 10px 14px;
+  border: 2px solid #d24b4b;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff0f0 0%, #ffe1e1 100%);
+  color: #8b1f1f;
+  font-family: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 20px rgba(210, 75, 75, 0.16);
+}
+
 form {
   flex: 1 1 auto;
   min-height: 0;
@@ -170,6 +222,36 @@ form {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.urgent-round-timer {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px auto 10px;
+  padding: 8px 16px;
+  border: 3px solid #6f0f0f;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff4b8 0%, #ff8b6d 52%, #ff4b4b 100%);
+  color: #24110f;
+  box-shadow: 0 10px 22px rgba(179, 42, 42, 0.28);
+  animation: urgentTimerPulse 780ms ease-in-out infinite;
+}
+
+.urgent-round-timer-label {
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.urgent-round-timer-value {
+  min-width: 1.6ch;
+  font-family: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
 }
 
 .wordle-container {
@@ -300,6 +382,16 @@ form {
   .game-meta {
     flex-wrap: wrap;
   }
+
+  .progress-track {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .guess-usage {
+    min-width: 0;
+    text-align: left;
+  }
 }
 
 @keyframes flipIn {
@@ -355,6 +447,18 @@ form {
   100% {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(41, 164, 104, 0);
+  }
+}
+
+@keyframes urgentTimerPulse {
+  0%,
+  100% {
+    transform: scale(0.98);
+    box-shadow: 0 10px 22px rgba(179, 42, 42, 0.24);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 14px 28px rgba(179, 42, 42, 0.38);
   }
 }
 

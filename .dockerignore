@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+.angular
+coverage
+dist
+apps/client/dist
+apps/server/dist
+packages/shared/dist
+.git
+.gitignore
+README.md
+format_output.txt

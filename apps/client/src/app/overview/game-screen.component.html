@@ -1,7 +1,6 @@
 <div class="topbar" role="toolbar" aria-label="Actions">
   <div class="topbar-actions">
-    <button type="button" class="lobby-back" (click)="returnToLobby.emit()">Zurueck zur Lobby</button>
-    <button type="button" class="new-game" (click)="newGame.emit()">Neues Spiel</button>
+    <button type="button" class="lobby-back" (click)="returnToLobby.emit()">Zurück zur Lobby</button>
   </div>
 </div>
 
@@ -9,18 +8,26 @@
   <aside class="progress-panel">
     <h3>Spielerfortschritt</h3>
     @for (player of playerList; track player.id) {
-      <div class="progress-row" [class.me]="isCurrentPlayer(player.id)">
-        <span class="name">{{ player.name }}</span>
-        <div class="progress-cells">
-          @for (cellState of getProgressCells(player.id); track $index) {
-            <span
-              class="progress-cell"
-              [class.state-unset]="cellState === 'unset'"
-              [class.state-present]="cellState === 'present'"
-              [class.state-correct]="cellState === 'correct'"
-              [class.progress-flash]="isProgressCellFlashing(player.id, $index)"
-            ></span>
+      <div class="progress-row" [class.me]="isCurrentPlayer(player.id)" [class.exhausted]="isPlayerExhausted(player.id)">
+        <div class="progress-row-header">
+          <span class="name">{{ player.name }}</span>
+          @if (isPlayerExhausted(player.id)) {
+            <span class="progress-status">Erledigt</span>
           }
+        </div>
+        <div class="progress-track">
+          <div class="progress-cells">
+            @for (cellState of getProgressCells(player.id); track $index) {
+              <span
+                class="progress-cell"
+                [class.state-unset]="cellState === 'unset'"
+                [class.state-present]="cellState === 'present'"
+                [class.state-correct]="cellState === 'correct'"
+                [class.progress-flash]="isProgressCellFlashing(player.id, $index)"
+              ></span>
+            }
+          </div>
+          <span class="guess-usage">{{ getPlayerGuessUsageLabel(player.id) }}</span>
         </div>
       </div>
     }
@@ -33,10 +40,22 @@
       <span>Du: {{ myPlayerName }}</span>
     </div>
 
+    @if (currentPlayerStatusMessage) {
+      <div class="player-status-banner" role="status" aria-live="polite">{{ currentPlayerStatusMessage }}</div>
+    }
+
     <form #gameForm (submit)="submitted.emit($event)">
       <div class="control-spacer" aria-hidden="true"></div>
 
       <div class="control-container">
+        @if (isUrgentRoundTimerVisible) {
+          <div class="urgent-round-timer" role="status" aria-live="assertive" aria-atomic="true">
+            <span class="urgent-round-timer-label">Noch</span>
+            <span class="urgent-round-timer-value">{{ urgentRoundTimerLabel }}</span>
+            <span class="urgent-round-timer-label">Sek.</span>
+          </div>
+        }
+
         <div class="wordle-container" #lettersContainer>
           <div class="letter-container" #letterRows>
             @for (row of rows; track $index) {

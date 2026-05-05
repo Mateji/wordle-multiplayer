@@ -16,6 +16,8 @@ export class GameScreenComponent {
   @Input() playerList: PlayerSummary[] = [];
   @Input() playerId = '';
   @Input() timeRemainingLabel = '--:--';
+  @Input() urgentRoundTimerLabel = '';
+  @Input() isUrgentRoundTimerVisible = false;
   @Input() myPlayerName = 'Ich';
   @Input() rows: Row[] = [];
   @Input() keyStates: Record<string, LetterState> = {};
@@ -27,13 +29,15 @@ export class GameScreenComponent {
   @Input() wordleMaxHeight = 9999;
   @Input() wordleOverflowY: 'hidden' | 'auto' = 'hidden';
   @Input() getProgressCells!: (playerId: PlayerId) => ProgressCellState[];
+  @Input() getPlayerGuessUsageLabel!: (playerId: PlayerId) => string;
   @Input() isCurrentPlayer!: (playerId: PlayerId) => boolean;
+  @Input() isPlayerExhausted!: (playerId: PlayerId) => boolean;
   @Input() isProgressCellFlashing!: (playerId: PlayerId, index: number) => boolean;
+  @Input() currentPlayerStatusMessage = '';
 
   @Output() readonly keyPressed = new EventEmitter<string>();
   @Output() readonly submitted = new EventEmitter<Event>();
   @Output() readonly returnToLobby = new EventEmitter<void>();
-  @Output() readonly newGame = new EventEmitter<void>();
 
   @ViewChild('gameForm') gameForm?: ElementRef<HTMLElement>;
   @ViewChild('lettersContainer') lettersContainer?: ElementRef<HTMLElement>;

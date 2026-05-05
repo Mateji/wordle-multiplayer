@@ -6,7 +6,7 @@ export type LetterState = 'correct' | 'present' | 'absent' | 'unset';
 export type ProgressCellState = 'correct' | 'present' | 'unset';
 
 export type RoomPhase = 'lobby' | 'in-game' | 'finished';
-export type RoundStatus = 'idle' | 'running' | 'solved' | 'timeout' | 'cancelled';
+export type RoundStatus = 'idle' | 'countdown' | 'running' | 'solved' | 'timeout' | 'cancelled';
 
 export interface RoomSettings {
   wordLength: number;
@@ -20,6 +20,7 @@ export interface PlayerSummary {
   id: PlayerId;
   name: string;
   connected: boolean;
+  wins: number;
 }
 
 export interface GuessCell {
@@ -42,6 +43,8 @@ export interface PlayerRoundProgress {
   playerId: PlayerId;
   cells: PlayerProgressCell[];
   solved: boolean;
+  guessesUsed: number;
+  exhausted: boolean;
   updatedAt: number;
 }
 
@@ -77,12 +80,25 @@ export interface JoinRoomPayload {
   roomId: RoomId;
   playerName: string;
   reconnectPlayerId?: PlayerId;
+  reconnectSecret?: string;
+}
+
+export interface RoomJoinResponse {
+  roomId: RoomId;
+  playerId: PlayerId;
+  reconnectSecret: string;
+  state: RoomStateSnapshot;
 }
 
 export interface KickPlayerPayload {
   roomId: RoomId;
   hostPlayerId: PlayerId;
   targetPlayerId: PlayerId;
+}
+
+export interface LeaveRoomPayload {
+  roomId: RoomId;
+  playerId: PlayerId;
 }
 
 export interface SubmitGuessPayload {
@@ -110,11 +126,15 @@ export interface StartRoundPayload {
 export interface ClientToServerEvents {
   'room:create': (
     payload: CreateRoomPayload,
-    ack: (response: Ack<{ roomId: RoomId; playerId: PlayerId; state: RoomStateSnapshot }>) => void,
+    ack: (response: Ack<RoomJoinResponse>) => void,
   ) => void;
   'room:join': (
     payload: JoinRoomPayload,
-    ack: (response: Ack<{ roomId: RoomId; playerId: PlayerId; state: RoomStateSnapshot }>) => void,
+    ack: (response: Ack<RoomJoinResponse>) => void,
+  ) => void;
+  'room:leave': (
+    payload: LeaveRoomPayload,
+    ack: (response: Ack<{ roomId: RoomId }>) => void,
   ) => void;
   'room:kick-player': (
     payload: KickPlayerPayload,

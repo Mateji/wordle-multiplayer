@@ -10,7 +10,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import type { GuessCell, PlayerId, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
+import type { GuessCell, PlayerId, PlayerRoundProgress, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
 import { Subscription } from 'rxjs';
 import type { LetterState, Row } from '../models';
 import { MultiplayerService } from '../services/multiplayer.service';
@@ -23,6 +23,7 @@ type ViewMode = 'entry' | 'lobby' | 'game';
 type StoredRoomSession = {
   roomId: string;
   playerId: string;
+  reconnectSecret: string;
 };
 
 @Component({
@@ -50,6 +51,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   joinCode = '';
   roomId = '';
   playerId = '';
+  reconnectSecret = '';
 
   roomState: RoomStateSnapshot | null = null;
   actionError = '';
@@ -107,6 +109,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private pendingRoomIdFromLink = '';
   private requiresNameForRoomLink = false;
   private suppressNextRouteAutoJoin = false;
+  private blockedAutoJoinRoomId = '';
   private preferLobbyDuringGame = false;
   private preferLobbyAfterFinish = false;
   private kickedBannerTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -120,6 +123,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     if (storedSession) {
       this.roomId = storedSession.roomId;
       this.playerId = storedSession.playerId;
+      this.reconnectSecret = storedSession.reconnectSecret;
     }
     this.resetRows(this.settingsForm.wordLength);
 
@@ -144,15 +148,18 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
           return;
         }
 
-        // Show a blocking dialog to the kicked player; only navigate back when they acknowledge.
-        this.kickedDialogMessage = message;
-        this.cdr.detectChanges();
+        this.applyKickedState(message);
       }),
     );
 
     this.subscriptions.add(
       this.route.paramMap.subscribe((params) => {
         const linkedRoomId = this.normalizeRoomCode(params.get('roomId') ?? '');
+
+        if (!linkedRoomId) {
+          this.blockedAutoJoinRoomId = '';
+        }
+
         this.pendingRoomIdFromLink = linkedRoomId;
         this.joinCode = linkedRoomId;
 
@@ -160,12 +167,12 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
         if (linkedRoomSession && linkedRoomSession.roomId === linkedRoomId) {
           this.roomId = linkedRoomSession.roomId;
           this.playerId = linkedRoomSession.playerId;
+          this.reconnectSecret = linkedRoomSession.reconnectSecret;
         }
 
         if (linkedRoomId) {
           try {
-            const serverBase = `${window.location.protocol}//${window.location.hostname}:3001`;
-            void fetch(`${serverBase}/rooms/${linkedRoomId}`, { method: 'GET' })
+            void fetch(this.multiplayer.buildServerUrl(`/rooms/${linkedRoomId}`), { method: 'GET' })
               .then((res) => {
                 if (res.status === 404) {
                   if (this.pendingRoomIdFromLink === linkedRoomId) {
@@ -190,13 +197,18 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
           return;
         }
 
+        if (this.blockedAutoJoinRoomId && this.blockedAutoJoinRoomId === linkedRoomId) {
+          this.requiresNameForRoomLink = false;
+          return;
+        }
+
         if (this.suppressNextRouteAutoJoin && this.roomId === linkedRoomId) {
           this.suppressNextRouteAutoJoin = false;
           this.requiresNameForRoomLink = false;
           return;
         }
 
-        if (this.playerId && this.roomId === linkedRoomId) {
+        if (this.roomState?.id === linkedRoomId && this.playerId && this.roomId === linkedRoomId) {
           this.requiresNameForRoomLink = false;
           return;
         }
@@ -281,11 +293,64 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get isGameInputEnabled(): boolean {
-    return this.mode === 'game' && this.roomState?.phase === 'in-game' && this.roomState.round.status === 'running';
+    return this.mode === 'game' && this.roomState?.phase === 'in-game' && this.roomState.round.status === 'running' && !this.isCurrentPlayerExhausted;
+  }
+
+  get isCountdownVisible(): boolean {
+    return this.roomState?.round.status === 'countdown' && !!this.roomState.round.startedAt;
+  }
+
+  get countdownDisplayValue(): string {
+    if (!this.isCountdownVisible || !this.roomState?.round.startedAt) {
+      return '';
+    }
+
+    const millisecondsRemaining = Math.max(0, this.roomState.round.startedAt - this.nowTimestamp);
+    return String(Math.max(0, Math.ceil(millisecondsRemaining / 1000)));
   }
 
   get playerList(): PlayerSummary[] {
     return this.roomState?.players ?? [];
+  }
+
+  get sortedGamePlayerList(): PlayerSummary[] {
+    const players = [...this.playerList];
+    const originalOrder = new Map(players.map((player, index) => [player.id, index]));
+
+    return players.sort((left, right) => {
+      const leftProgress = this.getPlayerProgress(left.id);
+      const rightProgress = this.getPlayerProgress(right.id);
+      const leftSolved = leftProgress?.solved ? 1 : 0;
+      const rightSolved = rightProgress?.solved ? 1 : 0;
+      if (leftSolved !== rightSolved) {
+        return rightSolved - leftSolved;
+      }
+
+      const scoreDiff = this.getProgressScore(rightProgress) - this.getProgressScore(leftProgress);
+      if (scoreDiff !== 0) {
+        return scoreDiff;
+      }
+
+      const guessDiff = (leftProgress?.guessesUsed ?? 0) - (rightProgress?.guessesUsed ?? 0);
+      if (guessDiff !== 0) {
+        return guessDiff;
+      }
+
+      return (originalOrder.get(left.id) ?? 0) - (originalOrder.get(right.id) ?? 0);
+    });
+  }
+
+  get isCurrentPlayerExhausted(): boolean {
+    const progress = this.getPlayerProgress(this.playerId);
+    return this.roomState?.phase === 'in-game' && this.roomState.round.status === 'running' && !!progress?.exhausted;
+  }
+
+  get currentPlayerStatusMessage(): string {
+    if (this.isCurrentPlayerExhausted) {
+      return 'Keine Versuche mehr. Du schaust jetzt zu.';
+    }
+
+    return '';
   }
 
   get currentWordLength(): number {
@@ -321,12 +386,16 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get timeRemainingLabel(): string {
-    if (this.roomState?.phase === 'in-game' && this.roomState.settings.timeLimitSeconds === 0) {
+    if (
+      this.roomState?.phase === 'in-game' &&
+      this.roomState.round.status === 'running' &&
+      this.roomState.settings.timeLimitSeconds === 0
+    ) {
       return 'Ohne Limit';
     }
 
     const endsAt = this.roomState?.round.endsAt;
-    if (!endsAt || this.roomState?.phase !== 'in-game') {
+    if (!endsAt || this.roomState?.phase !== 'in-game' || this.roomState.round.status !== 'running') {
       return '--:--';
     }
 
@@ -338,6 +407,22 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${minutes}:${seconds}`;
   }
 
+  get isUrgentRoundTimerVisible(): boolean {
+    if (this.roomState?.phase !== 'in-game' || this.roomState.round.status !== 'running' || !this.roomState.round.endsAt) {
+      return false;
+    }
+
+    return Math.ceil((this.roomState.round.endsAt - this.nowTimestamp) / 1000) <= 10;
+  }
+
+  get urgentRoundTimerLabel(): string {
+    if (!this.isUrgentRoundTimerVisible || !this.roomState?.round.endsAt) {
+      return '';
+    }
+
+    return String(Math.max(0, Math.ceil((this.roomState.round.endsAt - this.nowTimestamp) / 1000)));
+  }
+
   get myPlayerName(): string {
     return this.playerList.find((player) => player.id === this.playerId)?.name ?? 'Ich';
   }
@@ -347,7 +432,9 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       return false;
     }
 
-    return this.roomState.phase === 'lobby' || this.roomState.phase === 'finished';
+    return (
+      (this.roomState.phase === 'lobby' && this.roomState.round.status !== 'countdown') || this.roomState.phase === 'finished'
+    );
   }
 
   onKeyboardKey(key: string): void {
@@ -419,8 +506,9 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       });
       this.playerId = response.playerId;
       this.roomId = response.roomId;
+      this.reconnectSecret = response.reconnectSecret;
       this.storePlayerName(this.playerName);
-      this.storeRoomSession(response.roomId, response.playerId);
+      this.storeRoomSession(response.roomId, response.playerId, response.reconnectSecret);
       this.suppressNextRouteAutoJoin = true;
       await this.router.navigate(['/room', response.roomId], { replaceUrl: true });
       this.applyRoomState(response.state);
@@ -449,16 +537,20 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     const normalizedJoinCode = this.normalizeRoomCode(this.joinCode);
 
     try {
-      const reconnectPlayerId = this.roomId === normalizedJoinCode ? this.playerId : '';
+      const canReconnect =
+        this.roomId === normalizedJoinCode && !!this.playerId.trim() && !!this.reconnectSecret.trim();
+      const reconnectPlayerId = canReconnect ? this.playerId : '';
       const response = await this.multiplayer.joinRoom({
         roomId: this.joinCode,
         playerName: this.playerName,
         reconnectPlayerId: reconnectPlayerId || undefined,
+        reconnectSecret: canReconnect ? this.reconnectSecret : undefined,
       });
       this.playerId = response.playerId;
       this.roomId = response.roomId;
+      this.reconnectSecret = response.reconnectSecret;
       this.storePlayerName(this.playerName);
-      this.storeRoomSession(response.roomId, response.playerId);
+      this.storeRoomSession(response.roomId, response.playerId, response.reconnectSecret);
       this.requiresNameForRoomLink = false;
       this.pendingRoomIdFromLink = '';
       this.suppressNextRouteAutoJoin = true;
@@ -598,27 +690,6 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  async onPlayAgain(): Promise<void> {
-    if (!this.roomState || !this.isHost) {
-      this.actionError = 'Nur der Host kann eine neue Runde starten.';
-      return;
-    }
-
-    this.actionError = '';
-
-    try {
-      await this.multiplayer.startNewGame({
-        roomId: this.roomState.id,
-        playerId: this.playerId,
-      });
-      this.preferLobbyDuringGame = false;
-      this.preferLobbyAfterFinish = false;
-      this.showWinPopup = false;
-    } catch (error) {
-      this.actionError = error instanceof Error ? error.message : 'Neue Runde konnte nicht gestartet werden.';
-    }
-  }
-
   onReturnToLobby(): void {
     if (this.roomState?.phase === 'in-game') {
       this.preferLobbyDuringGame = true;
@@ -640,45 +711,28 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.scheduleLayoutUpdate();
   }
 
-  async onNewGame(): Promise<void> {
-    if (this.roomState && this.isHost) {
-      await this.onPlayAgain();
-      return;
-    }
-
-    this.mode = 'entry';
-    this.roomId = '';
-    this.playerId = '';
-    this.roomState = null;
-    this.currentRoundId = '';
-    this.preferLobbyDuringGame = false;
-    this.preferLobbyAfterFinish = false;
-    this.showWinPopup = false;
-    this.gameOver = false;
-    this.actionError = '';
-    this.serverError = '';
-    this.clearInvalidWordMessage();
-    this.clearProgressFlashes();
-    this.resetRows(this.settingsForm.wordLength);
-    this.requiresNameForRoomLink = false;
-    this.pendingRoomIdFromLink = '';
-    this.clearRoomSession();
-    await this.router.navigate(['/'], { replaceUrl: true });
-  }
-
   async onLeaveLobby(): Promise<void> {
-    // Try to inform server that we leave the room so it can update other clients immediately.
+    const roomId = this.roomId;
+    const playerId = this.playerId;
+
+    this.isBusy = true;
+
     try {
-      if (this.roomId && this.playerId) {
-        this.multiplayer.disconnectSocket();
+      if (roomId && playerId) {
+        await this.multiplayer.leaveRoom({ roomId, playerId });
       }
     } catch {
-      // ignore errors and continue with local cleanup
+      try {
+        this.multiplayer.disconnectSocket();
+      } catch {
+        // ignore errors and continue with local cleanup
+      }
     }
 
     this.mode = 'entry';
     this.roomId = '';
     this.playerId = '';
+    this.reconnectSecret = '';
     this.roomState = null;
     this.currentRoundId = '';
     this.preferLobbyDuringGame = false;
@@ -721,15 +775,24 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getProgressCells(playerId: PlayerId): ProgressCellState[] {
-    const progress = this.roomState?.playerProgress.find((entry) => entry.playerId === playerId);
+    const progress = this.getPlayerProgress(playerId);
     if (!progress) {
       return Array.from({ length: this.currentWordLength }, () => 'unset');
     }
     return progress.cells.map((cell) => cell.state);
   }
 
+  getPlayerGuessUsageLabel(playerId: PlayerId): string {
+    const guessesUsed = this.getPlayerProgress(playerId)?.guessesUsed ?? 0;
+    return `${guessesUsed}/${this.currentMaxGuesses}`;
+  }
+
   isCurrentPlayer(playerId: PlayerId): boolean {
     return playerId === this.playerId;
+  }
+
+  isPlayerExhausted(playerId: PlayerId): boolean {
+    return !!this.getPlayerProgress(playerId)?.exhausted;
   }
 
   isProgressCellFlashing(playerId: PlayerId, index: number): boolean {
@@ -741,6 +804,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       const storedSession = this.getStoredRoomSession();
       if (storedSession && storedSession.roomId === state.id) {
         this.playerId = storedSession.playerId;
+        this.reconnectSecret = storedSession.reconnectSecret;
       }
     }
 
@@ -748,13 +812,31 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.roomState = state;
     this.roomId = state.id;
     if (this.playerId) {
-      this.storeRoomSession(state.id, this.playerId);
+      this.storeRoomSession(state.id, this.playerId, this.reconnectSecret);
     }
     this.settingsForm.wordLength = state.settings.wordLength;
     this.settingsForm.maxGuesses = state.settings.maxGuesses;
     this.settingsForm.timeLimitSeconds = state.settings.timeLimitSeconds;
 
     this.detectProgressFlashes(previousState, state);
+
+    if (this.currentRoundId !== state.round.id) {
+      this.currentRoundId = state.round.id;
+      this.resetRows(state.settings.wordLength);
+      this.showWinPopup = false;
+      this.clearProgressFlashes();
+    }
+
+    if (state.round.status === 'countdown') {
+      this.preferLobbyDuringGame = false;
+      this.preferLobbyAfterFinish = false;
+      this.mode = 'lobby';
+      this.showWinPopup = false;
+      this.gameOver = false;
+      this.startTicker();
+      this.scheduleLayoutUpdate();
+      return;
+    }
 
     if (state.phase === 'lobby') {
       this.preferLobbyDuringGame = false;
@@ -772,13 +854,6 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       (state.phase === 'in-game' && this.preferLobbyDuringGame) ||
       (state.phase === 'finished' && (this.preferLobbyAfterFinish || this.preferLobbyDuringGame));
     this.mode = keepLobbyView ? 'lobby' : 'game';
-
-    if (this.currentRoundId !== state.round.id) {
-      this.currentRoundId = state.round.id;
-      this.resetRows(state.settings.wordLength);
-      this.showWinPopup = false;
-      this.clearProgressFlashes();
-    }
 
     if (state.phase === 'in-game' && state.round.status === 'running') {
       this.preferLobbyAfterFinish = false;
@@ -1045,6 +1120,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private startTicker(): void {
+    this.nowTimestamp = Date.now();
     if (this.tickerInterval) {
       return;
     }
@@ -1052,7 +1128,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tickerInterval = setInterval(() => {
       this.nowTimestamp = Date.now();
       this.cdr.detectChanges();
-    }, 500);
+    }, 200);
   }
 
   private clearTicker(): void {
@@ -1152,6 +1228,32 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${playerId}:${index}`;
   }
 
+  private getPlayerProgress(playerId: PlayerId): PlayerRoundProgress | null {
+    if (!playerId) {
+      return null;
+    }
+
+    return this.roomState?.playerProgress.find((entry) => entry.playerId === playerId) ?? null;
+  }
+
+  private getProgressScore(progress: PlayerRoundProgress | null): number {
+    if (!progress) {
+      return 0;
+    }
+
+    return progress.cells.reduce((score, cell) => {
+      if (cell.state === 'correct') {
+        return score + 3;
+      }
+
+      if (cell.state === 'present') {
+        return score + 1;
+      }
+
+      return score;
+    }, 0);
+  }
+
   private async joinLinkedRoom(roomId: string): Promise<void> {
     if (!roomId || !this.playerName.trim()) {
       return;
@@ -1161,7 +1263,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    if ((this.roomState?.id === roomId && this.playerId) || (this.roomId === roomId && this.playerId)) {
+    if (this.roomState?.id === roomId && this.playerId && this.roomId === roomId) {
       return;
     }
 
@@ -1230,20 +1332,22 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     return window.localStorage.getItem(OverviewComponent.PLAYER_NAME_STORAGE_KEY)?.trim() ?? '';
   }
 
-  private storeRoomSession(roomId: string, playerId: string): void {
+  private storeRoomSession(roomId: string, playerId: string, reconnectSecret: string): void {
     if (typeof window === 'undefined') {
       return;
     }
 
     const normalizedRoomId = this.normalizeRoomCode(roomId);
     const normalizedPlayerId = playerId.trim();
-    if (!normalizedRoomId || !normalizedPlayerId) {
+    const normalizedReconnectSecret = reconnectSecret.trim();
+    if (!normalizedRoomId || !normalizedPlayerId || !normalizedReconnectSecret) {
       return;
     }
 
     const payload: StoredRoomSession = {
       roomId: normalizedRoomId,
       playerId: normalizedPlayerId,
+      reconnectSecret: normalizedReconnectSecret,
     };
     window.localStorage.setItem(OverviewComponent.ROOM_SESSION_STORAGE_KEY, JSON.stringify(payload));
   }
@@ -1262,11 +1366,12 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       const parsed = JSON.parse(raw) as Partial<StoredRoomSession>;
       const roomId = this.normalizeRoomCode(parsed.roomId ?? '');
       const playerId = (parsed.playerId ?? '').trim();
-      if (!roomId || !playerId) {
+      const reconnectSecret = (parsed.reconnectSecret ?? '').trim();
+      if (!roomId || !playerId || !reconnectSecret) {
         return null;
       }
 
-      return { roomId, playerId };
+      return { roomId, playerId, reconnectSecret };
     } catch {
       return null;
     }
@@ -1296,10 +1401,12 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  private async handleKicked(message: string): Promise<void> {
+  private applyKickedState(message: string): void {
+    const kickedRoomId = this.roomId || this.pendingRoomIdFromLink;
     this.mode = 'entry';
     this.roomId = '';
     this.playerId = '';
+    this.reconnectSecret = '';
     this.roomState = null;
     this.currentRoundId = '';
     this.preferLobbyDuringGame = false;
@@ -1312,17 +1419,20 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showKickedBanner(message);
     this.joinCode = '';
     this.pendingRoomIdFromLink = '';
+    this.blockedAutoJoinRoomId = kickedRoomId;
     this.requiresNameForRoomLink = false;
     this.suppressNextRouteAutoJoin = false;
     this.clearTicker();
     this.clearInvalidWordMessage();
     this.clearProgressFlashes();
     this.clearRoomSession();
+    this.multiplayer.disconnectSocket();
     this.multiplayer.clearServerError();
     this.multiplayer.clearKickedNotice();
+    this.kickedDialogMessage = message;
     this.resetRows(this.settingsForm.wordLength);
     this.cdr.detectChanges();
-    await this.router.navigate(['/'], { replaceUrl: true });
+    void this.router.navigate(['/'], { replaceUrl: true });
   }
 
   private showKickedBanner(message: string): void {
@@ -1343,11 +1453,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.kickedBannerMessage = '';
   }
 
-  async acknowledgeKickedDialog(): Promise<void> {
+  acknowledgeKickedDialog(): void {
     if (!this.kickedDialogMessage) return;
-    const message = this.kickedDialogMessage;
-    // Use the existing cleanup/navigation for kicked players
-    await this.handleKicked(message);
     this.kickedDialogMessage = '';
     this.cdr.detectChanges();
   }

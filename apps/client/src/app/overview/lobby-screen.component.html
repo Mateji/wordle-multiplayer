@@ -90,7 +90,7 @@
                 class="punk-button lobby-button-save"
                 type="button"
                 (click)="updateLobbySettings.emit()"
-                [disabled]="isBusy || isRoundRunning"
+                [disabled]="isBusy || isRoundRunning || isRoundStarting"
               >
                 Einstellungen speichern
               </button>
@@ -98,7 +98,7 @@
                 class="punk-button lobby-button-start"
                 type="button"
                 (click)="startRound.emit()"
-                [disabled]="isBusy || isRoundRunning"
+                [disabled]="isBusy || isRoundRunning || isRoundStarting"
               >
                 Runde starten
               </button>
@@ -108,15 +108,21 @@
           }
         </article>
 
+        @if (isRoundStarting) {
+          <div class="running-round-banner" role="status" aria-live="polite">
+            <span>Runde startet gleich.</span>
+          </div>
+        }
+
         @if (isRoundRunning) {
           <div class="running-round-banner" role="status" aria-live="polite">
-            <span>Ein Spiel laeuft gerade.</span>
+            <span>Ein Spiel läuft gerade.</span>
             <button
               type="button"
               class="player-kick-button lobby-back-to-game-button"
               (click)="returnToGame.emit()"
             >
-              Zurueck ins Spiel
+              Zurück ins Spiel
             </button>
           </div>
         }
@@ -132,9 +138,17 @@
             <li class="player-card">
               <span class="player-avatar" aria-hidden="true">{{ player.name.slice(0, 1).toUpperCase() }}</span>
               <span class="player-name">{{ player.name }}</span>
-              @if (player.id === roomState.hostPlayerId) {
-                <span class="player-host-crown" aria-label="Host">&#9819;</span>
-              }
+              <span class="player-badges">
+                @if (player.id === roomState.hostPlayerId) {
+                  <span class="player-role-badge player-role-badge--host" aria-label="Host">Host</span>
+                }
+                @if (player.wins > 0) {
+                  @if (player.wins > 1) {
+                    <span class="player-win-count" aria-hidden="true">{{ player.wins }}x</span>
+                  }
+                  <span class="player-role-badge player-role-badge--winner" [attr.aria-label]="player.wins + ' Siege'">♛</span>
+                }
+              </span>
               @if (isHost && player.id !== roomState.hostPlayerId) {
                 <button
                   type="button"

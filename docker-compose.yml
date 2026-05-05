@@ -1,0 +1,21 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    environment:
+      PORT: 3001
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+    restart: unless-stopped
+    expose:
+      - "3001"
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+    depends_on:
+      - server
+    restart: unless-stopped
+    ports:
+      - "80:80"

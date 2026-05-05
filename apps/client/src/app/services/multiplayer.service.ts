@@ -6,6 +6,8 @@ import type {
   GuessCell,
   JoinRoomPayload,
   KickPlayerPayload,
+  LeaveRoomPayload,
+  RoomJoinResponse,
   RoomStateSnapshot,
   ServerToClientEvents,
   StartRoundPayload,
@@ -15,10 +17,13 @@ import type {
 import { BehaviorSubject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 
-type CreateRoomResponse = { roomId: string; playerId: string; state: RoomStateSnapshot };
-type JoinRoomResponse = { roomId: string; playerId: string; state: RoomStateSnapshot };
+type CreateRoomResponse = RoomJoinResponse;
+type JoinRoomResponse = RoomJoinResponse;
 type StateResponse = { state: RoomStateSnapshot };
 type GuessSubmitResponse = { state: RoomStateSnapshot; result: GuessCell[] };
+
+const LOCAL_SERVER_PORT = '3001';
+const LOCAL_BROWSER_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
 @Injectable({
   providedIn: 'root',
@@ -66,6 +71,11 @@ export class MultiplayerService {
     return data;
   }
 
+  async leaveRoom(payload: LeaveRoomPayload): Promise<void> {
+    await this.emitWithAck('room:leave', payload);
+    this.roomStateSubject.next(null);
+  }
+
   async kickPlayer(payload: KickPlayerPayload): Promise<RoomStateSnapshot> {
     const data: StateResponse = await this.emitWithAck('room:kick-player', payload);
     this.roomStateSubject.next(data.state);
@@ -81,6 +91,7 @@ export class MultiplayerService {
   disconnectSocket(): void {
     try {
       this.socket.disconnect();
+      this.roomStateSubject.next(null);
     } catch {
       // ignore
     }
@@ -112,11 +123,48 @@ export class MultiplayerService {
     this.kickedSubject.next('');
   }
 
+  buildServerUrl(pathname: string): string {
+    const serverUrl = new URL(this.getServerUrl());
+    serverUrl.pathname = pathname.startsWith('/') ? pathname : `/${pathname}`;
+    serverUrl.search = '';
+    serverUrl.hash = '';
+    return serverUrl.toString();
+  }
+
   private getServerUrl(): string {
+    const configuredUrl = this.getConfiguredServerUrl();
+    if (configuredUrl) {
+      return configuredUrl;
+    }
+
     if (typeof window === 'undefined') {
       return 'http://localhost:3001';
     }
-    return `${window.location.protocol}//${window.location.hostname}:3001`;
+
+    if (LOCAL_BROWSER_HOSTS.has(window.location.hostname)) {
+      return `${window.location.protocol}//${window.location.hostname}:${LOCAL_SERVER_PORT}`;
+    }
+
+    return window.location.origin;
+  }
+
+  private getConfiguredServerUrl(): string | null {
+    const runtimeConfig = globalThis as typeof globalThis & {
+      __WORDLE_SERVER_URL__?: unknown;
+    };
+    const configuredUrl =
+      typeof runtimeConfig.__WORDLE_SERVER_URL__ === 'string' ? runtimeConfig.__WORDLE_SERVER_URL__.trim() : '';
+
+    if (!configuredUrl) {
+      return null;
+    }
+
+    try {
+      const baseOrigin = typeof window === 'undefined' ? 'http://localhost:4200' : window.location.origin;
+      return new URL(configuredUrl, baseOrigin).origin;
+    } catch {
+      return null;
+    }
   }
 
   private emitWithAck<E extends keyof ClientToServerEvents, R>(
