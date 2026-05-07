@@ -38,6 +38,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private static readonly ROOM_SESSION_STORAGE_KEY = 'wordle.roomSession';
   private static readonly LOBBY_COUNTDOWN_AUDIO_GROUP = 'lobby-countdown';
   private static readonly ROUND_END_COUNTDOWN_AUDIO_GROUP = 'round-end-countdown';
+  private static readonly ROUND_TIMEOUT_AUDIO_GROUP = 'round-timeout';
   private static readonly ROUND_FINISH_AUDIO_GROUP = 'round-finish';
 
   @ViewChild(GameScreenComponent)
@@ -645,6 +646,31 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  async onEndRound(): Promise<void> {
+    if (!this.roomState || !this.isHost) {
+      return;
+    }
+
+    const roundIsActive = this.roomState.round.status === 'countdown' || this.roomState.round.status === 'running';
+    if (!roundIsActive) {
+      return;
+    }
+
+    this.actionError = '';
+    this.isBusy = true;
+
+    try {
+      await this.multiplayer.endRound({
+        roomId: this.roomState.id,
+        playerId: this.playerId,
+      });
+    } catch (error) {
+      this.actionError = error instanceof Error ? error.message : 'Runde konnte nicht beendet werden.';
+    } finally {
+      this.isBusy = false;
+    }
+  }
+
   async onKickPlayer(targetPlayerId: PlayerId): Promise<void> {
     if (!this.roomState || !this.isHost || !targetPlayerId) {
       return;
@@ -1243,6 +1269,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private async syncCountdownAudio(state: RoomStateSnapshot): Promise<void> {
     if (state.round.status === 'countdown' && state.round.startedAt) {
+      this.audio.cancelGroup(OverviewComponent.ROUND_TIMEOUT_AUDIO_GROUP);
       this.audio.cancelGroup(OverviewComponent.ROUND_END_COUNTDOWN_AUDIO_GROUP);
       await this.audio.scheduleNumberCountdown(
         OverviewComponent.LOBBY_COUNTDOWN_AUDIO_GROUP,
@@ -1255,15 +1282,29 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.audio.cancelGroup(OverviewComponent.LOBBY_COUNTDOWN_AUDIO_GROUP);
 
     if (state.phase === 'in-game' && state.round.status === 'running' && state.round.endsAt) {
-      await this.audio.scheduleNumberCountdown(
-        OverviewComponent.ROUND_END_COUNTDOWN_AUDIO_GROUP,
-        10,
-        state.round.endsAt,
-      );
+      await Promise.all([
+        this.audio.scheduleNumberCountdown(
+          OverviewComponent.ROUND_END_COUNTDOWN_AUDIO_GROUP,
+          10,
+          state.round.endsAt,
+        ),
+        this.audio.scheduleSequenceAt(
+          OverviewComponent.ROUND_TIMEOUT_AUDIO_GROUP,
+          ['time_over', 'you_lose'],
+          state.round.endsAt,
+          `${state.round.id}:${state.round.endsAt}:timeout`,
+        ),
+      ]);
       return;
     }
 
     this.audio.cancelGroup(OverviewComponent.ROUND_END_COUNTDOWN_AUDIO_GROUP);
+
+    if (state.phase === 'finished' && state.round.status === 'timeout') {
+      return;
+    }
+
+    this.audio.cancelGroup(OverviewComponent.ROUND_TIMEOUT_AUDIO_GROUP);
   }
 
   private clearCountdownAudio(): void {

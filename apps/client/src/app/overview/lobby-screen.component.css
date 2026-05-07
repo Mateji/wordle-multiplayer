@@ -217,6 +217,14 @@
     transform: rotate(-1deg);
 }
 
+.running-round-banner-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .running-round-banner span {
     font-family: var(--punk-font-display, Impact, sans-serif);
     letter-spacing: 0.04em;
@@ -231,6 +239,15 @@
     white-space: nowrap;
     background: #111111;
     color: #fffaf0;
+    border-color: #111111;
+}
+
+.lobby-end-round-button {
+    padding: 6px 12px;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    background: #fffaf0;
+    color: #111111;
     border-color: #111111;
 }
 

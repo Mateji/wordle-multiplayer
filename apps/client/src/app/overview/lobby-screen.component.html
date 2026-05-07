@@ -108,19 +108,43 @@
         @if (isRoundStarting) {
           <div class="running-round-banner" role="status" aria-live="polite">
             <span>Runde startet gleich.</span>
+            @if (isHost) {
+              <div class="running-round-banner-actions">
+                <button
+                  type="button"
+                  class="player-kick-button lobby-end-round-button"
+                  [disabled]="isBusy"
+                  (click)="endRound.emit()"
+                >
+                  Runde beenden
+                </button>
+              </div>
+            }
           </div>
         }
 
         @if (isRoundRunning) {
           <div class="running-round-banner" role="status" aria-live="polite">
             <span>Ein Spiel läuft gerade.</span>
-            <button
-              type="button"
-              class="player-kick-button lobby-back-to-game-button"
-              (click)="returnToGame.emit()"
-            >
-              Zurück ins Spiel
-            </button>
+            <div class="running-round-banner-actions">
+              @if (isHost) {
+                <button
+                  type="button"
+                  class="player-kick-button lobby-end-round-button"
+                  [disabled]="isBusy"
+                  (click)="endRound.emit()"
+                >
+                  Runde beenden
+                </button>
+              }
+              <button
+                type="button"
+                class="player-kick-button lobby-back-to-game-button"
+                (click)="returnToGame.emit()"
+              >
+                Zurück ins Spiel
+              </button>
+            </div>
           </div>
         }
       </div>

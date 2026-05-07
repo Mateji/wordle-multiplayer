@@ -10,13 +10,20 @@ import { OverviewComponent } from './overview.component';
 class AudioServiceStub {
   async unlock(): Promise<void> {}
 
-  async playClip(): Promise<void> {}
+  async playClip(_name?: string): Promise<void> {}
 
-  async playSequence(): Promise<void> {}
+  async playSequence(_groupName?: string, _clipNames?: string[], _spec?: string): Promise<void> {}
 
-  async scheduleNumberCountdown(): Promise<void> {}
+  async scheduleSequenceAt(
+    _groupName?: string,
+    _clipNames?: string[],
+    _startUnixMs?: number,
+    _spec?: string,
+  ): Promise<void> {}
 
-  cancelGroup(): void {}
+  async scheduleNumberCountdown(_groupName?: string, _highestNumber?: number, _endUnixMs?: number): Promise<void> {}
+
+  cancelGroup(_groupName?: string): void {}
 
   cancelAll(): void {}
 }
@@ -48,15 +55,19 @@ class MultiplayerServiceStub {
     throw new Error('not implemented in tests');
   }
 
-  async startRound(): Promise<never> {
+  async startRound(_payload?: unknown): Promise<never> {
     throw new Error('not implemented in tests');
   }
 
-  async submitGuess(): Promise<never> {
+  async endRound(_payload?: unknown): Promise<RoomStateSnapshot> {
     throw new Error('not implemented in tests');
   }
 
-  async startNewGame(): Promise<never> {
+  async submitGuess(_payload?: unknown): Promise<never> {
+    throw new Error('not implemented in tests');
+  }
+
+  async startNewGame(_payload?: unknown): Promise<never> {
     throw new Error('not implemented in tests');
   }
 }
@@ -65,6 +76,7 @@ describe('Overview', () => {
   let component: OverviewComponent;
   let fixture: ComponentFixture<OverviewComponent>;
   let routeParamMap: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+  let audioService: AudioServiceStub;
   let multiplayerService: MultiplayerServiceStub;
   let router: Router;
 
@@ -90,6 +102,7 @@ describe('Overview', () => {
 
     fixture = TestBed.createComponent(OverviewComponent);
     component = fixture.componentInstance;
+    audioService = TestBed.inject(AudioService) as unknown as AudioServiceStub;
     multiplayerService = TestBed.inject(MultiplayerService) as unknown as MultiplayerServiceStub;
     router = TestBed.inject(Router);
     fixture.detectChanges();
@@ -401,6 +414,71 @@ describe('Overview', () => {
 
     expect(component.isUrgentRoundTimerVisible).toBeTrue();
     expect(component.urgentRoundTimerLabel).toMatch(/^[0-9]+$/);
+  });
+
+  it('lets the host end an active round from the lobby', async () => {
+    component.playerId = 'p1';
+    const activeRoundState: RoomStateSnapshot = {
+      id: 'ROOM1',
+      phase: 'in-game',
+      hostPlayerId: 'p1',
+      settings: { wordLength: 5, maxGuesses: 6, timeLimitSeconds: 120, language: 'de' },
+      players: [{ id: 'p1', name: 'Alpha', connected: true, wins: 0 }],
+      round: {
+        id: 'r-end',
+        status: 'running',
+        startedAt: Date.now() - 30_000,
+        endsAt: Date.now() + 20_000,
+        winnerPlayerId: null,
+      },
+      playerProgress: [],
+      updatedAt: Date.now(),
+    };
+
+    component.roomState = activeRoundState;
+
+    const endRoundSpy = spyOn(multiplayerService, 'endRound').and.resolveTo(activeRoundState);
+
+    await component.onEndRound();
+
+    expect(endRoundSpy).toHaveBeenCalledWith({ roomId: 'ROOM1', playerId: 'p1' });
+    expect(component.isBusy).toBeFalse();
+  });
+
+  it('buffers countdown and timeout audio against the round end timestamp', async () => {
+    const countdownSpy = spyOn(audioService, 'scheduleNumberCountdown').and.resolveTo();
+    const timeoutSequenceSpy = spyOn(audioService, 'scheduleSequenceAt').and.resolveTo();
+
+    const endsAt = Date.now() + 9_000;
+
+    multiplayerService.roomStateSubject.next({
+      id: 'ROOM1',
+      phase: 'in-game',
+      hostPlayerId: 'p1',
+      settings: { wordLength: 5, maxGuesses: 6, timeLimitSeconds: 60, language: 'de' },
+      players: [{ id: 'p1', name: 'Alpha', connected: true, wins: 0 }],
+      round: {
+        id: 'round_timeout',
+        status: 'running',
+        startedAt: Date.now() - 51_000,
+        endsAt,
+        winnerPlayerId: null,
+      },
+      playerProgress: [],
+      updatedAt: Date.now(),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(countdownSpy).toHaveBeenCalledWith('round-end-countdown', 10, endsAt);
+    expect(timeoutSequenceSpy).toHaveBeenCalledWith(
+      'round-timeout',
+      ['time_over', 'you_lose'],
+      endsAt,
+      jasmine.stringMatching(/^round_timeout:/),
+    );
   });
 
   it('shows the revealed target word in the finished-round popup', () => {

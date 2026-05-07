@@ -17,6 +17,7 @@ export class AudioService {
     'green-found',
     'error',
     'congratulations',
+    'time_over',
     'you_win',
     'you_lose',
   ] as const;
@@ -84,6 +85,47 @@ export class AudioService {
     }
 
     let nextStartTime = context.currentTime;
+
+    for (const buffer of buffers) {
+      if (!buffer) {
+        continue;
+      }
+
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      source.onended = () => {
+        source.disconnect();
+      };
+      source.start(nextStartTime);
+      activeGroup.sources.push(source);
+      nextStartTime += buffer.duration;
+    }
+  }
+
+  async scheduleSequenceAt(groupName: string, clipNames: string[], startUnixMs: number, spec: string): Promise<void> {
+    const context = this.getAudioContext();
+    if (!context || context.state !== 'running' || !clipNames.length || !Number.isFinite(startUnixMs)) {
+      return;
+    }
+
+    const currentGroup = this.countdownGroups.get(groupName);
+    if (currentGroup?.spec === spec) {
+      return;
+    }
+
+    this.cancelGroup(groupName);
+    this.countdownGroups.set(groupName, { spec, sources: [] });
+
+    const buffers = await Promise.all(clipNames.map((name) => this.loadClip(name)));
+    const activeGroup = this.countdownGroups.get(groupName);
+    if (!activeGroup || activeGroup.spec !== spec) {
+      return;
+    }
+
+    const nowMs = Date.now();
+    const audioNow = context.currentTime;
+    let nextStartTime = audioNow + Math.max(0, startUnixMs - nowMs) / 1000;
 
     for (const buffer of buffers) {
       if (!buffer) {

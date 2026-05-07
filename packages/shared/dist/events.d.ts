@@ -108,6 +108,10 @@ export interface StartRoundPayload {
     roomId: RoomId;
     playerId: PlayerId;
 }
+export interface EndRoundPayload {
+    roomId: RoomId;
+    playerId: PlayerId;
+}
 export interface ClientToServerEvents {
     'room:create': (payload: CreateRoomPayload, ack: (response: Ack<RoomJoinResponse>) => void) => void;
     'room:join': (payload: JoinRoomPayload, ack: (response: Ack<RoomJoinResponse>) => void) => void;
@@ -125,6 +129,9 @@ export interface ClientToServerEvents {
         state: RoomStateSnapshot;
     }>) => void) => void;
     'game:start': (payload: StartRoundPayload, ack: (response: Ack<{
+        state: RoomStateSnapshot;
+    }>) => void) => void;
+    'game:end': (payload: EndRoundPayload, ack: (response: Ack<{
         state: RoomStateSnapshot;
     }>) => void) => void;
     'game:new': (payload: StartNewGamePayload, ack: (response: Ack<{

@@ -3,6 +3,7 @@ import type {
   Ack,
   ClientToServerEvents,
   CreateRoomPayload,
+  EndRoundPayload,
   GuessCell,
   JoinRoomPayload,
   KickPlayerPayload,
@@ -99,6 +100,12 @@ export class MultiplayerService {
 
   async startRound(payload: StartRoundPayload): Promise<RoomStateSnapshot> {
     const data: StateResponse = await this.emitWithAck('game:start', payload);
+    this.roomStateSubject.next(data.state);
+    return data.state;
+  }
+
+  async endRound(payload: EndRoundPayload): Promise<RoomStateSnapshot> {
+    const data: StateResponse = await this.emitWithAck('game:end', payload);
     this.roomStateSubject.next(data.state);
     return data.state;
   }

@@ -297,6 +297,23 @@ io.on('connection', (socket) => {
         ack(successAck({ state }));
         io.to(room.id).emit('room:state', state);
     });
+    socket.on('game:end', (payload, ack) => {
+        const authorized = assertHostSocket(socket.id, payload.roomId);
+        if (!authorized.ok) {
+            ack(errorAck(authorized.error));
+            return;
+        }
+        const { room } = authorized;
+        const roundIsActive = room.round.status === 'countdown' || (room.phase === 'in-game' && room.round.status === 'running');
+        if (!roundIsActive) {
+            ack(errorAck('Round is not active'));
+            return;
+        }
+        returnRoomToLobby(room);
+        const state = publicState(room);
+        ack(successAck({ state }));
+        io.to(room.id).emit('room:state', state);
+    });
     socket.on('guess:submit', (payload, ack) => {
         const authorized = assertPlayerInRoom(socket.id, payload.roomId);
         if (!authorized.ok) {
@@ -685,6 +702,22 @@ function finishRound(room, status, winnerPlayerId) {
         }
     }
     room.phase = 'finished';
+    room.updatedAt = Date.now();
+}
+function returnRoomToLobby(room) {
+    clearRoomTimer(room.id);
+    room.phase = 'lobby';
+    room.round = {
+        ...room.round,
+        status: 'idle',
+        startedAt: null,
+        endsAt: null,
+        winnerPlayerId: null,
+        revealedTargetWord: null,
+    };
+    room.playerProgress = room.players.map((player) => emptyProgress(player.id, room.settings.wordLength));
+    room.guesses = [];
+    room.secretWord = '';
     room.updatedAt = Date.now();
 }
 function clearRoomTimer(roomId) {

@@ -36,6 +36,7 @@ export class LobbyScreenComponent {
 
   @Output() readonly updateLobbySettings = new EventEmitter<void>();
   @Output() readonly startRound = new EventEmitter<void>();
+  @Output() readonly endRound = new EventEmitter<void>();
   @Output() readonly copyRoomLink = new EventEmitter<void>();
   @Output() readonly returnToGame = new EventEmitter<void>();
   @Output() readonly leaveLobby = new EventEmitter<void>();
