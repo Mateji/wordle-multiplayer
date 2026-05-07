@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import type {
   Ack,
   ClientToServerEvents,
-  GuessCell,
   GuessEntry,
   PlayerId,
   PlayerRoundProgress,
@@ -21,6 +20,7 @@ import type {
 import cors from 'cors';
 import express from 'express';
 import { Server } from 'socket.io';
+import { deriveProgressCells, evaluateGuess } from './progress.js';
 
 interface InternalRoom {
   id: RoomId;
@@ -429,11 +429,10 @@ io.on('connection', (socket) => {
     room.guesses.push(guess);
     const playerProgress = room.playerProgress.find((entry) => entry.playerId === playerId);
     if (playerProgress) {
-      const currentCounts = countProgressCells(playerProgress);
-      const guessCounts = countGuessCells(guess.cells);
-      const nextCorrect = Math.max(currentCounts.correct, guessCounts.correct);
-      const nextPresent = Math.max(currentCounts.present, guessCounts.present);
-      applyProgressCounts(playerProgress, nextCorrect, nextPresent, room.settings.wordLength);
+      playerProgress.cells = deriveProgressCells(
+        room.guesses.filter((entry) => entry.playerId === playerId),
+        room.settings.wordLength,
+      );
       const guessesUsed = guessCountForPlayer(room, playerId);
       playerProgress.guessesUsed = guessesUsed;
       playerProgress.solved = guess.cells.every((cell) => cell.state === 'correct');
@@ -581,7 +580,13 @@ function assertHostSocket(
 
 function publicState(room: InternalRoom): RoomStateSnapshot {
   const { secretWord, guesses, ...state } = room;
-  return state;
+  return {
+    ...state,
+    round: {
+      ...state.round,
+      revealedTargetWord: state.phase === 'finished' ? secretWord : null,
+    },
+  };
 }
 
 function emptyProgress(playerId: PlayerId, wordLength: number): RoomStateSnapshot['playerProgress'][number] {
@@ -801,6 +806,7 @@ function startRound(room: InternalRoom): void {
     startedAt: now + ROUND_START_COUNTDOWN_MS,
     endsAt: null,
     winnerPlayerId: null,
+    revealedTargetWord: null,
   };
   room.playerProgress = room.players.map((player) => emptyProgress(player.id, room.settings.wordLength));
   room.guesses = [];
@@ -836,6 +842,7 @@ function activateRound(roomId: RoomId, roundId: string): void {
     startedAt: now,
     endsAt: hasTimeLimit ? now + room.settings.timeLimitSeconds * 1000 : null,
     winnerPlayerId: null,
+    revealedTargetWord: null,
   };
   room.updatedAt = now;
 
@@ -866,6 +873,7 @@ function finishRound(
   clearRoomTimer(room.id);
   room.round.status = status;
   room.round.winnerPlayerId = winnerPlayerId;
+  room.round.revealedTargetWord = room.secretWord;
 
   if (winnerPlayerId) {
     const winner = room.players.find((player) => player.id === winnerPlayerId);
@@ -896,84 +904,4 @@ function allPlayersUsedAllGuesses(room: InternalRoom): boolean {
     return false;
   }
   return room.players.every((player) => guessCountForPlayer(room, player.id) >= room.settings.maxGuesses);
-}
-
-function countGuessCells(cells: GuessCell[]): { correct: number; present: number } {
-  let correct = 0;
-  let present = 0;
-  for (const cell of cells) {
-    if (cell.state === 'correct') {
-      correct++;
-      continue;
-    }
-    if (cell.state === 'present') {
-      present++;
-    }
-  }
-  return { correct, present };
-}
-
-function countProgressCells(progress: PlayerRoundProgress): { correct: number; present: number } {
-  let correct = 0;
-  let present = 0;
-  for (const cell of progress.cells) {
-    if (cell.state === 'correct') {
-      correct++;
-      continue;
-    }
-    if (cell.state === 'present') {
-      present++;
-    }
-  }
-  return { correct, present };
-}
-
-function applyProgressCounts(
-  progress: PlayerRoundProgress,
-  correctCount: number,
-  presentCount: number,
-  totalLength: number,
-): void {
-  const boundedCorrect = clamp(correctCount, 0, totalLength);
-  const boundedPresent = clamp(presentCount, 0, totalLength - boundedCorrect);
-  const nextCells = [] as PlayerRoundProgress['cells'];
-
-  for (let index = 0; index < totalLength; index++) {
-    if (index < boundedCorrect) {
-      nextCells.push({ state: 'correct' });
-      continue;
-    }
-    if (index < boundedCorrect + boundedPresent) {
-      nextCells.push({ state: 'present' });
-      continue;
-    }
-    nextCells.push({ state: 'unset' });
-  }
-
-  progress.cells = nextCells;
-}
-
-function evaluateGuess(guess: string, target: string): GuessCell[] {
-  const cells: GuessCell[] = guess.split('').map((letter) => ({ letter, state: 'absent' }));
-  const remaining = target.split('');
-
-  for (let index = 0; index < guess.length; index++) {
-    if (guess[index] === target[index]) {
-      cells[index].state = 'correct';
-      remaining[index] = '\u0000';
-    }
-  }
-
-  for (let index = 0; index < guess.length; index++) {
-    if (cells[index].state === 'correct') {
-      continue;
-    }
-    const matchIndex = remaining.indexOf(guess[index]);
-    if (matchIndex !== -1) {
-      cells[index].state = 'present';
-      remaining[matchIndex] = '\u0000';
-    }
-  }
-
-  return cells;
 }

@@ -43,14 +43,11 @@
             <span class="lobby-field-label">Buchstaben</span>
             <div class="field-with-icon">
               <img class="field-icon" src="/assets/icons/icon_letter.png" alt="" aria-hidden="true" />
-              <input
-                class="punk-input"
-                type="number"
-                min="3"
-                max="7"
-                [(ngModel)]="settingsForm.wordLength"
-                [disabled]="isSettingsDisabled"
-              />
+              <!--
+                Temporarily keep word length fixed at 5 until the remaining word lists are filled.
+                Restore the editable input below when variable word lengths are ready again.
+              -->
+              <input class="punk-input" type="number" [value]="5" disabled />
             </div>
           </label>
 

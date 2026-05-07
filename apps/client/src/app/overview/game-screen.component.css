@@ -105,6 +105,12 @@
   color: #233042;
 }
 
+.progress-row.exhausted .name {
+  color: #a32f2f;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
 .progress-status {
   padding: 3px 8px;
   border: 1px solid #d24b4b;

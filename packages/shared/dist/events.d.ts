@@ -44,6 +44,7 @@ export interface RoundSnapshot {
     startedAt: number | null;
     endsAt: number | null;
     winnerPlayerId: PlayerId | null;
+    revealedTargetWord?: string | null;
 }
 export interface RoomStateSnapshot {
     id: RoomId;

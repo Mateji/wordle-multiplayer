@@ -1,10 +1,25 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import type { RoomStateSnapshot } from '@wordle/shared';
+import type { RoomJoinResponse, RoomStateSnapshot } from '@wordle/shared';
 import { BehaviorSubject } from 'rxjs';
+import { AudioService } from '../services/audio.service';
 import { MultiplayerService } from '../services/multiplayer.service';
 import { OverviewComponent } from './overview.component';
+
+class AudioServiceStub {
+  async unlock(): Promise<void> {}
+
+  async playClip(): Promise<void> {}
+
+  async playSequence(): Promise<void> {}
+
+  async scheduleNumberCountdown(): Promise<void> {}
+
+  cancelGroup(): void {}
+
+  cancelAll(): void {}
+}
 
 class MultiplayerServiceStub {
   readonly roomStateSubject = new BehaviorSubject<RoomStateSnapshot | null>(null);
@@ -25,7 +40,7 @@ class MultiplayerServiceStub {
     throw new Error('not implemented in tests');
   }
 
-  async joinRoom(_payload?: unknown): Promise<any> {
+  async joinRoom(_payload?: unknown): Promise<RoomJoinResponse> {
     throw new Error('not implemented in tests');
   }
 
@@ -68,6 +83,7 @@ describe('Overview', () => {
             paramMap: routeParamMap.asObservable(),
           },
         },
+        { provide: AudioService, useClass: AudioServiceStub },
         { provide: MultiplayerService, useClass: MultiplayerServiceStub },
       ],
     }).compileComponents();
@@ -385,5 +401,39 @@ describe('Overview', () => {
 
     expect(component.isUrgentRoundTimerVisible).toBeTrue();
     expect(component.urgentRoundTimerLabel).toMatch(/^[0-9]+$/);
+  });
+
+  it('shows the revealed target word in the finished-round popup', () => {
+    multiplayerService.roomStateSubject.next({
+      id: 'ROOM1',
+      phase: 'finished',
+      hostPlayerId: 'p1',
+      settings: { wordLength: 5, maxGuesses: 6, timeLimitSeconds: 120, language: 'de' },
+      players: [{ id: 'p1', name: 'Alpha', connected: true, wins: 1 }],
+      round: {
+        id: 'r6',
+        status: 'solved',
+        startedAt: Date.now() - 30_000,
+        endsAt: Date.now(),
+        winnerPlayerId: 'p1',
+        revealedTargetWord: 'OBELS',
+      },
+      playerProgress: [
+        {
+          playerId: 'p1',
+          cells: [{ state: 'correct' }, { state: 'correct' }, { state: 'correct' }, { state: 'correct' }, { state: 'correct' }],
+          solved: true,
+          guessesUsed: 3,
+          exhausted: false,
+          updatedAt: Date.now(),
+        },
+      ],
+      updatedAt: Date.now(),
+    });
+    fixture.detectChanges();
+
+    const popupText = fixture.nativeElement.textContent as string;
+    expect(component.showWinPopup).toBeTrue();
+    expect(popupText).toContain('Das Zielwort war: OBELS');
   });
 });

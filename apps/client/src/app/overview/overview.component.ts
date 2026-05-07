@@ -13,6 +13,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import type { GuessCell, PlayerId, PlayerRoundProgress, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
 import { Subscription } from 'rxjs';
 import type { LetterState, Row } from '../models';
+import { AudioService } from '../services/audio.service';
 import { MultiplayerService } from '../services/multiplayer.service';
 import { EntryScreenComponent } from './entry-screen.component';
 import { GameScreenComponent } from './game-screen.component';
@@ -35,6 +36,9 @@ type StoredRoomSession = {
 export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private static readonly PLAYER_NAME_STORAGE_KEY = 'wordle.playerName';
   private static readonly ROOM_SESSION_STORAGE_KEY = 'wordle.roomSession';
+  private static readonly LOBBY_COUNTDOWN_AUDIO_GROUP = 'lobby-countdown';
+  private static readonly ROUND_END_COUNTDOWN_AUDIO_GROUP = 'round-end-countdown';
+  private static readonly ROUND_FINISH_AUDIO_GROUP = 'round-finish';
 
   @ViewChild(GameScreenComponent)
   set gameScreenComponent(component: GameScreenComponent | undefined) {
@@ -82,6 +86,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   nowTimestamp = Date.now();
 
   private subscriptions = new Subscription();
+  private readonly audio = inject(AudioService);
   private readonly multiplayer = inject(MultiplayerService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly route = inject(ActivatedRoute);
@@ -116,6 +121,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   kickedDialogMessage = '';
   linkCopiedMessage = '';
   private copyNoticeTimeout: ReturnType<typeof setTimeout> | null = null;
+  private finishedAudioRoundId = '';
 
   ngOnInit(): void {
     this.playerName = this.getStoredPlayerName();
@@ -237,9 +243,15 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.subscriptions.unsubscribe();
     this.letterInputChangesSubscription?.unsubscribe();
     this.letterInputChangesSubscription = null;
+    this.clearCountdownAudio();
     this.clearTransientTimers();
     this.clearTicker();
     this.clearKickedBanner();
+  }
+
+  @HostListener('document:pointerdown')
+  onDocumentPointerdown(): void {
+    this.unlockAndSyncAudio();
   }
 
   @HostListener('window:resize')
@@ -249,6 +261,8 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent): void {
+    this.unlockAndSyncAudio();
+
     if (!this.isGameInputEnabled) return;
 
     const target = event.target as HTMLElement | null;
@@ -359,6 +373,12 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get currentMaxGuesses(): number {
     return this.roomState?.settings.maxGuesses ?? this.settingsForm.maxGuesses;
+  }
+
+  get revealedTargetWord(): string {
+    return this.roomState?.phase === 'finished'
+      ? (this.roomState.round.revealedTargetWord ?? '').toLocaleUpperCase('de-DE')
+      : '';
   }
 
   get keyStates(): Record<string, LetterState> {
@@ -498,6 +518,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.actionError = '';
     this.serverError = '';
     this.isBusy = true;
+    this.unlockAndSyncAudio();
 
     try {
       const response = await this.multiplayer.createRoom({
@@ -533,6 +554,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.actionError = '';
     this.serverError = '';
     this.isBusy = true;
+    this.unlockAndSyncAudio();
 
     const normalizedJoinCode = this.normalizeRoomCode(this.joinCode);
 
@@ -601,6 +623,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.actionError = '';
     this.isBusy = true;
+    this.unlockAndSyncAudio();
 
     try {
       const roomId = this.roomState.id;
@@ -669,6 +692,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
       });
 
       this.applyGuessResult(response.result, submittedText);
+      this.playGuessResultSound(response.result);
 
       const solved = response.result.every((cell) => cell.state === 'correct');
       if (solved) {
@@ -749,6 +773,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearTicker();
     this.clearInvalidWordMessage();
     this.clearProgressFlashes();
+    this.clearCountdownAudio();
     this.clearRoomSession();
     this.multiplayer.clearServerError();
     this.multiplayer.clearKickedNotice();
@@ -819,9 +844,11 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.settingsForm.timeLimitSeconds = state.settings.timeLimitSeconds;
 
     this.detectProgressFlashes(previousState, state);
+  this.unlockAndSyncAudio();
 
     if (this.currentRoundId !== state.round.id) {
       this.currentRoundId = state.round.id;
+      this.finishedAudioRoundId = '';
       this.resetRows(state.settings.wordLength);
       this.showWinPopup = false;
       this.clearProgressFlashes();
@@ -872,6 +899,10 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
         this.winMessage = 'Zeit abgelaufen. Runde beendet.';
       } else {
         this.winMessage = 'Runde beendet.';
+      }
+
+      if (this.showWinPopup) {
+        this.playFinishedRoundSequence(state);
       }
     }
 
@@ -1169,6 +1200,76 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearProgressFlashes();
   }
 
+  private playGuessResultSound(result: GuessCell[]): void {
+    const clipName = this.getGuessResultClipName(result);
+    void this.audio.playClip(clipName);
+  }
+
+  private getGuessResultClipName(result: GuessCell[]): 'green-found' | 'yellow-found' | 'error' {
+    if (result.some((cell) => cell.state === 'correct')) {
+      return 'green-found';
+    }
+
+    if (result.some((cell) => cell.state === 'present')) {
+      return 'yellow-found';
+    }
+
+    return 'error';
+  }
+
+  private playFinishedRoundSequence(state: RoomStateSnapshot): void {
+    if (this.finishedAudioRoundId === state.round.id || !state.round.winnerPlayerId) {
+      return;
+    }
+
+    const clipName = state.round.winnerPlayerId === this.playerId ? 'you_win' : 'you_lose';
+    this.finishedAudioRoundId = state.round.id;
+    void this.audio.playSequence(
+      OverviewComponent.ROUND_FINISH_AUDIO_GROUP,
+      ['congratulations', clipName],
+      `${state.round.id}:${clipName}`,
+    );
+  }
+
+  private unlockAndSyncAudio(): void {
+    void this.audio.unlock().then(() => {
+      if (!this.roomState) {
+        return;
+      }
+
+      return this.syncCountdownAudio(this.roomState);
+    });
+  }
+
+  private async syncCountdownAudio(state: RoomStateSnapshot): Promise<void> {
+    if (state.round.status === 'countdown' && state.round.startedAt) {
+      this.audio.cancelGroup(OverviewComponent.ROUND_END_COUNTDOWN_AUDIO_GROUP);
+      await this.audio.scheduleNumberCountdown(
+        OverviewComponent.LOBBY_COUNTDOWN_AUDIO_GROUP,
+        5,
+        state.round.startedAt,
+      );
+      return;
+    }
+
+    this.audio.cancelGroup(OverviewComponent.LOBBY_COUNTDOWN_AUDIO_GROUP);
+
+    if (state.phase === 'in-game' && state.round.status === 'running' && state.round.endsAt) {
+      await this.audio.scheduleNumberCountdown(
+        OverviewComponent.ROUND_END_COUNTDOWN_AUDIO_GROUP,
+        10,
+        state.round.endsAt,
+      );
+      return;
+    }
+
+    this.audio.cancelGroup(OverviewComponent.ROUND_END_COUNTDOWN_AUDIO_GROUP);
+  }
+
+  private clearCountdownAudio(): void {
+    this.audio.cancelAll();
+  }
+
   private detectProgressFlashes(previousState: RoomStateSnapshot | null, nextState: RoomStateSnapshot): void {
     if (!previousState) {
       return;
@@ -1395,7 +1496,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     timeLimitSeconds: number;
   } {
     return {
-      wordLength: Math.round(Number(this.settingsForm.wordLength)),
+      wordLength: 5,
       maxGuesses: Math.round(Number(this.settingsForm.maxGuesses)),
       timeLimitSeconds: Math.round(Number(this.settingsForm.timeLimitSeconds)),
     };
@@ -1425,6 +1526,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearTicker();
     this.clearInvalidWordMessage();
     this.clearProgressFlashes();
+    this.clearCountdownAudio();
     this.clearRoomSession();
     this.multiplayer.disconnectSocket();
     this.multiplayer.clearServerError();

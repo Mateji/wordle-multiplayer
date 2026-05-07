@@ -133,8 +133,6 @@ Notes:
 
 
 ## Todos
-- Players that use all of their guesses are "killed" - add strikethrough in playerlist in lobby and let them watch the rest
 - Maybe add a observer screen, where killed players, or winners can watch the others
 - Add sounds when you find a green letter, a sound when you find a yellow letter, a death sound, a sound when another player finds green letters, a countdown sound
-- Show the target word in game over/game finished popup screen
-- disable letter count selection until wordlists are filled
+- Add Chat and redesign ui
