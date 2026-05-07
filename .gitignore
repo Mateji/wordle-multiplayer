@@ -43,3 +43,6 @@ Thumbs.db
 
 # Local temporary artifacts
 format_output.txt
+
+# update script
+deploy.sh
