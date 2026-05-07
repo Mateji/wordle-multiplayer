@@ -15,6 +15,8 @@ type EntrySettings = {
   styleUrl: './entry-screen.component.css',
 })
 export class EntryScreenComponent {
+  readonly version = 'v0.1.1';
+
   @Input() playerName = '';
   @Input() joinCode = '';
   @Input() showRoomLinkNamePrompt = false;

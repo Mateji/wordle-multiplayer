@@ -6,6 +6,19 @@
     isolation: isolate;
 }
 
+.entry-version {
+    position: absolute;
+    top: 0.4rem;
+    left: 0.55rem;
+    z-index: 2;
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-size: 0.72rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(17, 17, 17, 0.72);
+}
+
 .entry-layout::before {
     content: '';
     position: absolute;
@@ -523,6 +536,12 @@
 }
 
 @media (max-width: 760px) {
+    .entry-version {
+        top: 0.25rem;
+        left: 0.3rem;
+        font-size: 0.65rem;
+    }
+
     .entry-grid {
         width: 100%;
         grid-template-columns: 1fr;
