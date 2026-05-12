@@ -1,5 +1,6 @@
 import { Component, ElementRef, EventEmitter, Input, Output, QueryList, ViewChild, ViewChildren } from '@angular/core';
-import type { PlayerId, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
+import type { ChatMessage, PlayerId, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
+import { ChatComponent } from '../chat/chat.component';
 import { SingleLetterDirective } from '../directives/single-letter-directive';
 import { KeyboardComponent } from '../keyboard/keyboard.component';
 import type { LetterState, Row } from '../models';
@@ -7,7 +8,7 @@ import type { LetterState, Row } from '../models';
 @Component({
   selector: 'app-game-screen',
   standalone: true,
-  imports: [SingleLetterDirective, KeyboardComponent],
+  imports: [SingleLetterDirective, KeyboardComponent, ChatComponent],
   templateUrl: './game-screen.component.html',
   styleUrl: './game-screen.component.css',
 })
@@ -34,10 +35,14 @@ export class GameScreenComponent {
   @Input() isPlayerExhausted!: (playerId: PlayerId) => boolean;
   @Input() isProgressCellFlashing!: (playerId: PlayerId, index: number) => boolean;
   @Input() currentPlayerStatusMessage = '';
+  @Input() chatMessages: ChatMessage[] = [];
+  @Input() chatError = '';
+  @Input() isSendingChatMessage = false;
 
   @Output() readonly keyPressed = new EventEmitter<string>();
   @Output() readonly submitted = new EventEmitter<Event>();
   @Output() readonly returnToLobby = new EventEmitter<void>();
+  @Output() readonly sendChatMessage = new EventEmitter<string>();
 
   @ViewChild('gameForm') gameForm?: ElementRef<HTMLElement>;
   @ViewChild('lettersContainer') lettersContainer?: ElementRef<HTMLElement>;

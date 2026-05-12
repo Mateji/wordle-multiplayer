@@ -134,5 +134,7 @@ Notes:
 
 ## Todos
 - Maybe add a observer screen, where killed players, or winners can watch the others
-- Add sounds when you find a green letter, a sound when you find a yellow letter, a death sound, a sound when another player finds green letters, a countdown sound
+- Add sounds: a death sound, a sound when another player finds green letters
 - Add Chat and redesign ui
+- Mute Sounds Button
+- fix mobile screen, show keyboard, internal keyboard and at least two rows input, minified version of other player overview

@@ -147,6 +147,15 @@
             </div>
           </div>
         }
+
+        <app-chat
+          title="Lobby-Chat"
+          [messages]="chatMessages"
+          [currentPlayerId]="currentPlayerId"
+          [errorMessage]="chatError"
+          [isSending]="isSendingChatMessage"
+          (sendMessage)="sendChatMessage.emit($event)"
+        ></app-chat>
       </div>
 
       <article class="lobby-panel players-panel" aria-labelledby="players-title">

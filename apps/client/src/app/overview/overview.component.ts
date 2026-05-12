@@ -10,10 +10,11 @@ import {
   ViewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import type { GuessCell, PlayerId, PlayerRoundProgress, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
+import type { ChatMessage, GuessCell, PlayerId, PlayerRoundProgress, PlayerSummary, ProgressCellState, RoomStateSnapshot } from '@wordle/shared';
 import { Subscription } from 'rxjs';
 import type { LetterState, Row } from '../models';
 import { AudioService } from '../services/audio.service';
+import { ChatStoreService } from '../services/chat-store.service';
 import { MultiplayerService } from '../services/multiplayer.service';
 import { EntryScreenComponent } from './entry-screen.component';
 import { GameScreenComponent } from './game-screen.component';
@@ -88,6 +89,7 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private subscriptions = new Subscription();
   private readonly audio = inject(AudioService);
+  private readonly chatStore = inject(ChatStoreService);
   private readonly multiplayer = inject(MultiplayerService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly route = inject(ActivatedRoute);
@@ -121,6 +123,9 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
   private kickedBannerTimeout: ReturnType<typeof setTimeout> | null = null;
   kickedDialogMessage = '';
   linkCopiedMessage = '';
+  chatMessages: ChatMessage[] = [];
+  chatError = '';
+  isSendingChatMessage = false;
   private copyNoticeTimeout: ReturnType<typeof setTimeout> | null = null;
   private finishedAudioRoundId = '';
 
@@ -156,6 +161,20 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         this.applyKickedState(message);
+      }),
+    );
+
+    this.subscriptions.add(
+      this.chatStore.messages$.subscribe((messages) => {
+        this.chatMessages = messages;
+        this.cdr.detectChanges();
+      }),
+    );
+
+    this.subscriptions.add(
+      this.chatStore.error$.subscribe((error) => {
+        this.chatError = error;
+        this.cdr.detectChanges();
       }),
     );
 
@@ -803,9 +822,33 @@ export class OverviewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearRoomSession();
     this.multiplayer.clearServerError();
     this.multiplayer.clearKickedNotice();
+    this.chatStore.clearError();
     this.resetRows(this.settingsForm.wordLength);
     this.cdr.detectChanges();
     await this.router.navigate(['/'], { replaceUrl: true });
+  }
+
+  async onSendChatMessage(text: string): Promise<void> {
+    if (!this.roomState) {
+      return;
+    }
+
+    const normalizedText = text.trim();
+    if (!normalizedText) {
+      return;
+    }
+
+    this.isSendingChatMessage = true;
+    this.cdr.detectChanges();
+
+    try {
+      await this.chatStore.sendMessage(normalizedText);
+    } catch {
+      // ChatStore exposes the current error state for the UI.
+    } finally {
+      this.isSendingChatMessage = false;
+      this.cdr.detectChanges();
+    }
   }
 
   async onJoinLinkedRoom(): Promise<void> {

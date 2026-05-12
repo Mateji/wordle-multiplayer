@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
 import type {
   Ack,
+  ChatErrorPayload,
+  ChatHistoryPayload,
+  ChatMessage,
   ClientToServerEvents,
   CreateRoomPayload,
   EndRoundPayload,
@@ -10,12 +13,13 @@ import type {
   LeaveRoomPayload,
   RoomJoinResponse,
   RoomStateSnapshot,
+  SendChatMessagePayload,
   ServerToClientEvents,
   StartRoundPayload,
   SubmitGuessPayload,
   UpdateRoomSettingsPayload,
 } from '@wordle/shared';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 
 type CreateRoomResponse = RoomJoinResponse;
@@ -36,10 +40,16 @@ export class MultiplayerService {
   private readonly roomStateSubject = new BehaviorSubject<RoomStateSnapshot | null>(null);
   private readonly serverErrorSubject = new BehaviorSubject<string>('');
   private readonly kickedSubject = new BehaviorSubject<string>('');
+  private readonly chatHistorySubject = new Subject<ChatHistoryPayload>();
+  private readonly chatMessageAddedSubject = new Subject<ChatMessage>();
+  private readonly chatErrorSubject = new Subject<ChatErrorPayload>();
 
   readonly roomState$ = this.roomStateSubject.asObservable();
   readonly serverError$ = this.serverErrorSubject.asObservable();
   readonly kicked$ = this.kickedSubject.asObservable();
+  readonly chatHistory$ = this.chatHistorySubject.asObservable();
+  readonly chatMessageAdded$ = this.chatMessageAddedSubject.asObservable();
+  readonly chatError$ = this.chatErrorSubject.asObservable();
 
   constructor() {
     this.socket = io(this.getServerUrl(), {
@@ -57,6 +67,18 @@ export class MultiplayerService {
         this.kickedSubject.next(message);
       }
       this.serverErrorSubject.next(message);
+    });
+
+    this.socket.on('chat:history', (payload) => {
+      this.chatHistorySubject.next(payload);
+    });
+
+    this.socket.on('chat:messageAdded', (message) => {
+      this.chatMessageAddedSubject.next(message);
+    });
+
+    this.socket.on('chat:error', (error) => {
+      this.chatErrorSubject.next(error);
     });
   }
 
@@ -114,6 +136,11 @@ export class MultiplayerService {
     const data: GuessSubmitResponse = await this.emitWithAck('guess:submit', payload);
     this.roomStateSubject.next(data.state);
     return data;
+  }
+
+  async sendChatMessage(payload: SendChatMessagePayload): Promise<ChatMessage> {
+    const data: { message: ChatMessage } = await this.emitWithAck('chat:sendMessage', payload);
+    return data.message;
   }
 
   async startNewGame(payload: StartRoundPayload): Promise<RoomStateSnapshot> {

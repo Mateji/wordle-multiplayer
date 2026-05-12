@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type {
   Ack,
+  ChatMessage,
   ClientToServerEvents,
   GuessEntry,
   PlayerId,
@@ -31,6 +32,7 @@ interface InternalRoom {
   round: RoundSnapshot;
   playerProgress: PlayerRoundProgress[];
   guesses: GuessEntry[];
+  chatMessages: ChatMessage[];
   updatedAt: number;
   secretWord: string;
   reconnectSecrets: Map<PlayerId, string>;
@@ -53,6 +55,10 @@ const ALLOWED_TIME_LIMITS_SECONDS = new Set([0, 60, 120, 180, 240, 300]);
 const SUPPORTED_WORD_LENGTHS = [3, 4, 5, 6, 7];
 const PLAYER_REJOIN_TIMEOUT_MS = 2 * 60 * 1000;
 const ROUND_START_COUNTDOWN_MS = 5_000;
+const MAX_CHAT_MESSAGES_PER_ROOM = 50;
+const MAX_CHAT_MESSAGE_LENGTH = 300;
+const SYSTEM_PLAYER_ID = 'system';
+const SYSTEM_PLAYER_NAME = 'System';
 
 const rooms = new Map<RoomId, InternalRoom>();
 const roomTimers = new Map<RoomId, ReturnType<typeof setTimeout>>();
@@ -188,6 +194,7 @@ io.on('connection', (socket) => {
       },
       playerProgress: [emptyProgress(playerId, settings.wordLength)],
       guesses: [],
+      chatMessages: [],
       updatedAt: Date.now(),
       secretWord: '',
       reconnectSecrets: new Map([[playerId, randomReconnectSecret()]]),
@@ -199,6 +206,7 @@ io.on('connection', (socket) => {
 
     const state = publicState(room);
     ack(successAck({ roomId, playerId, reconnectSecret: room.reconnectSecrets.get(playerId) ?? '', state }));
+    emitChatHistory(socket, room);
     io.to(roomId).emit('room:state', state);
   });
 
@@ -239,6 +247,7 @@ io.on('connection', (socket) => {
     }
 
     let playerId: PlayerId;
+    let joinSystemMessage: ChatMessage | null = null;
     if (reconnectPlayer) {
       reconnectPlayer.connected = true;
       reconnectPlayer.name = playerName;
@@ -250,6 +259,7 @@ io.on('connection', (socket) => {
       room.players.push({ id: playerId, name: playerName, connected: true, wins: 0 });
       room.playerProgress.push(emptyProgress(playerId, room.settings.wordLength));
       room.reconnectSecrets.set(playerId, randomReconnectSecret());
+      joinSystemMessage = addSystemChatMessage(room, `${playerName} ist beigetreten.`);
     }
 
     room.updatedAt = Date.now();
@@ -259,6 +269,10 @@ io.on('connection', (socket) => {
 
     const state = publicState(room);
     ack(successAck({ roomId: room.id, playerId, reconnectSecret: room.reconnectSecrets.get(playerId) ?? '', state }));
+    emitChatHistory(socket, room);
+    if (joinSystemMessage) {
+      socket.to(room.id).emit('chat:messageAdded', joinSystemMessage);
+    }
     io.to(room.id).emit('room:state', state);
   });
 
@@ -270,6 +284,7 @@ io.on('connection', (socket) => {
     }
 
     const { room, playerId } = authorized;
+    const leavingPlayer = room.players.find((entry) => entry.id === playerId);
     room.updatedAt = Date.now();
 
     socket.leave(room.id);
@@ -280,6 +295,10 @@ io.on('connection', (socket) => {
 
     const currentRoom = rooms.get(room.id);
     if (currentRoom) {
+      if (leavingPlayer) {
+        const leaveSystemMessage = addSystemChatMessage(currentRoom, `${leavingPlayer.name} hat den Raum verlassen.`);
+        io.to(currentRoom.id).emit('chat:messageAdded', leaveSystemMessage);
+      }
       io.to(currentRoom.id).emit('room:state', publicState(currentRoom));
     }
   });
@@ -359,7 +378,9 @@ io.on('connection', (socket) => {
     room.updatedAt = Date.now();
 
     const state = publicState(room);
+    const kickSystemMessage = addSystemChatMessage(room, `${targetPlayer.name} wurde aus dem Raum entfernt.`);
     ack(successAck({ state }));
+    io.to(room.id).emit('chat:messageAdded', kickSystemMessage);
     io.to(room.id).emit('room:state', state);
   });
 
@@ -385,7 +406,9 @@ io.on('connection', (socket) => {
     startRound(room);
 
     const state = publicState(room);
+    const roundStartedMessage = addSystemChatMessage(room, 'Die Runde wurde gestartet.');
     ack(successAck({ state }));
+    io.to(room.id).emit('chat:messageAdded', roundStartedMessage);
     io.to(room.id).emit('room:state', state);
   });
 
@@ -475,6 +498,42 @@ io.on('connection', (socket) => {
     const state = publicState(room);
     ack(successAck({ state, result: guess.cells }));
     io.to(room.id).emit('room:state', state);
+  });
+
+  socket.on('chat:sendMessage', (payload, ack) => {
+    const authorized = assertPlayerForSocketSession(socket.id);
+    if (!authorized.ok) {
+      emitChatError(socket, 'CHAT_ROOM_REQUIRED', authorized.error);
+      ack(errorAck(authorized.error));
+      return;
+    }
+
+    const { room, player } = authorized;
+    const text = payload.text?.trim();
+
+    if (!text) {
+      const message = 'Nachricht darf nicht leer sein';
+      emitChatError(socket, 'CHAT_EMPTY_MESSAGE', message);
+      ack(errorAck(message));
+      return;
+    }
+
+    if (text.length > MAX_CHAT_MESSAGE_LENGTH) {
+      const message = `Nachricht darf maximal ${MAX_CHAT_MESSAGE_LENGTH} Zeichen haben`;
+      emitChatError(socket, 'CHAT_MESSAGE_TOO_LONG', message);
+      ack(errorAck(message));
+      return;
+    }
+
+    const chatMessage = addChatMessage(room, {
+      playerId: player.id,
+      playerName: player.name,
+      text,
+      type: 'player',
+    });
+
+    ack(successAck({ message: chatMessage }));
+    io.to(room.id).emit('chat:messageAdded', chatMessage);
   });
 
   socket.on('game:new', (payload, ack) => {
@@ -600,8 +659,29 @@ function assertHostSocket(
   return authorized;
 }
 
+function assertPlayerForSocketSession(
+  socketId: string,
+): { ok: true; room: InternalRoom; player: PlayerSummary } | { ok: false; error: string } {
+  const session = getSessionForSocket(socketId);
+  if (!session) {
+    return { ok: false, error: 'Player session not found' };
+  }
+
+  const room = rooms.get(session.roomId);
+  if (!room) {
+    return { ok: false, error: 'Room not found' };
+  }
+
+  const player = getPlayerForSocket(room, socketId);
+  if (!player) {
+    return { ok: false, error: 'Player not found in room' };
+  }
+
+  return { ok: true, room, player };
+}
+
 function publicState(room: InternalRoom): RoomStateSnapshot {
-  const { secretWord, guesses, ...state } = room;
+  const { secretWord, guesses, chatMessages, ...state } = room;
   return {
     ...state,
     round: {
@@ -624,6 +704,56 @@ function emptyProgress(playerId: PlayerId, wordLength: number): RoomStateSnapsho
 
 function randomId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function emitChatHistory(
+  socket: Parameters<Parameters<typeof io.on>[1]>[0],
+  room: InternalRoom,
+): void {
+  socket.emit('chat:history', {
+    roomCode: room.id,
+    messages: [...room.chatMessages],
+  });
+}
+
+function emitChatError(
+  socket: Parameters<Parameters<typeof io.on>[1]>[0],
+  code: string,
+  message: string,
+): void {
+  socket.emit('chat:error', { code, message });
+}
+
+function addSystemChatMessage(room: InternalRoom, text: string): ChatMessage {
+  return addChatMessage(room, {
+    playerId: SYSTEM_PLAYER_ID,
+    playerName: SYSTEM_PLAYER_NAME,
+    text,
+    type: 'system',
+  });
+}
+
+function addChatMessage(
+  room: InternalRoom,
+  input: Pick<ChatMessage, 'playerId' | 'playerName' | 'text' | 'type'>,
+): ChatMessage {
+  const chatMessage: ChatMessage = {
+    messageId: randomId('chat'),
+    roomCode: room.id,
+    playerId: input.playerId,
+    playerName: input.playerName,
+    text: input.text,
+    createdAt: Date.now(),
+    type: input.type,
+  };
+
+  room.chatMessages.push(chatMessage);
+  if (room.chatMessages.length > MAX_CHAT_MESSAGES_PER_ROOM) {
+    room.chatMessages.splice(0, room.chatMessages.length - MAX_CHAT_MESSAGES_PER_ROOM);
+  }
+
+  room.updatedAt = chatMessage.createdAt;
+  return chatMessage;
 }
 
 function randomReconnectSecret(): string {
@@ -676,6 +806,8 @@ function schedulePlayerDisconnectTimeout(roomId: RoomId, playerId: PlayerId): vo
 
     removePlayerFromRoom(room, playerId);
     room.updatedAt = Date.now();
+    const leaveSystemMessage = addSystemChatMessage(room, `${player.name} hat den Raum verlassen.`);
+    io.to(room.id).emit('chat:messageAdded', leaveSystemMessage);
     io.to(room.id).emit('room:state', publicState(room));
   }, PLAYER_REJOIN_TIMEOUT_MS);
 

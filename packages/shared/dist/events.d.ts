@@ -1,10 +1,12 @@
 export type RoomId = string;
 export type PlayerId = string;
 export type RoundId = string;
+export type ChatMessageId = string;
 export type LetterState = 'correct' | 'present' | 'absent' | 'unset';
 export type ProgressCellState = 'correct' | 'present' | 'unset';
 export type RoomPhase = 'lobby' | 'in-game' | 'finished';
 export type RoundStatus = 'idle' | 'countdown' | 'running' | 'solved' | 'timeout' | 'cancelled';
+export type ChatMessageType = 'player' | 'system';
 export interface RoomSettings {
     wordLength: number;
     maxGuesses: number;
@@ -55,6 +57,15 @@ export interface RoomStateSnapshot {
     round: RoundSnapshot;
     playerProgress: PlayerRoundProgress[];
     updatedAt: number;
+}
+export interface ChatMessage {
+    messageId: ChatMessageId;
+    roomCode: RoomId;
+    playerId: PlayerId;
+    playerName: string;
+    text: string;
+    createdAt: number;
+    type: ChatMessageType;
 }
 export type AckSuccess<T> = {
     ok: true;
@@ -112,6 +123,17 @@ export interface EndRoundPayload {
     roomId: RoomId;
     playerId: PlayerId;
 }
+export interface SendChatMessagePayload {
+    text: string;
+}
+export interface ChatHistoryPayload {
+    roomCode: RoomId;
+    messages: ChatMessage[];
+}
+export interface ChatErrorPayload {
+    code: string;
+    message: string;
+}
 export interface ClientToServerEvents {
     'room:create': (payload: CreateRoomPayload, ack: (response: Ack<RoomJoinResponse>) => void) => void;
     'room:join': (payload: JoinRoomPayload, ack: (response: Ack<RoomJoinResponse>) => void) => void;
@@ -137,6 +159,9 @@ export interface ClientToServerEvents {
     'game:new': (payload: StartNewGamePayload, ack: (response: Ack<{
         state: RoomStateSnapshot;
     }>) => void) => void;
+    'chat:sendMessage': (payload: SendChatMessagePayload, ack: (response: Ack<{
+        message: ChatMessage;
+    }>) => void) => void;
 }
 export interface ServerToClientEvents {
     'room:state': (state: RoomStateSnapshot) => void;
@@ -144,5 +169,8 @@ export interface ServerToClientEvents {
         code: string;
         message: string;
     }) => void;
+    'chat:history': (payload: ChatHistoryPayload) => void;
+    'chat:messageAdded': (message: ChatMessage) => void;
+    'chat:error': (error: ChatErrorPayload) => void;
 }
 //# sourceMappingURL=events.d.ts.map

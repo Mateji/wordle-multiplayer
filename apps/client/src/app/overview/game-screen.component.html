@@ -5,34 +5,6 @@
 </div>
 
 <section class="game-shell">
-  <aside class="progress-panel">
-    <h3>Spielerfortschritt</h3>
-    @for (player of playerList; track player.id) {
-      <div class="progress-row" [class.me]="isCurrentPlayer(player.id)" [class.exhausted]="isPlayerExhausted(player.id)">
-        <div class="progress-row-header">
-          <span class="name">{{ player.name }}</span>
-          @if (isPlayerExhausted(player.id)) {
-            <span class="progress-status">Erledigt</span>
-          }
-        </div>
-        <div class="progress-track">
-          <div class="progress-cells">
-            @for (cellState of getProgressCells(player.id); track $index) {
-              <span
-                class="progress-cell"
-                [class.state-unset]="cellState === 'unset'"
-                [class.state-present]="cellState === 'present'"
-                [class.state-correct]="cellState === 'correct'"
-                [class.progress-flash]="isProgressCellFlashing(player.id, $index)"
-              ></span>
-            }
-          </div>
-          <span class="guess-usage">{{ getPlayerGuessUsageLabel(player.id) }}</span>
-        </div>
-      </div>
-    }
-  </aside>
-
   <div class="board-panel">
     <div class="game-meta">
       <span>Raum: {{ roomState.id }}</span>
@@ -95,4 +67,44 @@
       <div class="control-spacer" aria-hidden="true"></div>
     </form>
   </div>
+
+  <aside class="side-panel">
+    <section class="progress-panel">
+      <h3>Spielerfortschritt</h3>
+      @for (player of playerList; track player.id) {
+        <div class="progress-row" [class.me]="isCurrentPlayer(player.id)" [class.exhausted]="isPlayerExhausted(player.id)">
+          <div class="progress-row-header">
+            <span class="name">{{ player.name }}</span>
+            @if (isPlayerExhausted(player.id)) {
+              <span class="progress-status">Erledigt</span>
+            }
+          </div>
+          <div class="progress-track">
+            <div class="progress-cells">
+              @for (cellState of getProgressCells(player.id); track $index) {
+                <span
+                  class="progress-cell"
+                  [class.state-unset]="cellState === 'unset'"
+                  [class.state-present]="cellState === 'present'"
+                  [class.state-correct]="cellState === 'correct'"
+                  [class.progress-flash]="isProgressCellFlashing(player.id, $index)"
+                ></span>
+              }
+            </div>
+            <span class="guess-usage">{{ getPlayerGuessUsageLabel(player.id) }}</span>
+          </div>
+        </div>
+      }
+    </section>
+
+    <app-chat
+      class="chat-panel"
+      title="Raum-Chat"
+      [messages]="chatMessages"
+      [currentPlayerId]="playerId"
+      [errorMessage]="chatError"
+      [isSending]="isSendingChatMessage"
+      (sendMessage)="sendChatMessage.emit($event)"
+    ></app-chat>
+  </aside>
 </section>

@@ -1,0 +1,42 @@
+<section class="chat-card" aria-label="Raum Chat">
+  <header class="chat-card-header">
+    <h3>{{ title }}</h3>
+  </header>
+
+  <div #messageList class="chat-message-list">
+    @if (messages.length) {
+      @for (message of messages; track message.messageId) {
+        <article
+          class="chat-message"
+          [class.chat-message--mine]="isOwnMessage(message)"
+          [class.chat-message--system]="message.type === 'system'"
+        >
+          <div class="chat-message-meta">
+            <span class="chat-message-author">{{ message.playerName }}</span>
+            <time class="chat-message-time">{{ message.createdAt | date: 'HH:mm' }}</time>
+          </div>
+          <p class="chat-message-text">{{ message.text }}</p>
+        </article>
+      }
+    } @else {
+      <p class="chat-empty-state">Noch keine Nachrichten in diesem Raum.</p>
+    }
+  </div>
+
+  @if (errorMessage) {
+    <p class="chat-error" role="status" aria-live="polite">{{ errorMessage }}</p>
+  }
+
+  <form class="chat-compose" (submit)="onSubmit(); $event.preventDefault()">
+    <input
+      type="text"
+      class="chat-input"
+      name="chatMessage"
+      [(ngModel)]="draftMessage"
+      maxlength="300"
+      placeholder="Nachricht schreiben"
+      autocomplete="off"
+    />
+    <button type="submit" class="chat-send-button" [disabled]="isSending || !draftMessage.trim()">Senden</button>
+  </form>
+</section>

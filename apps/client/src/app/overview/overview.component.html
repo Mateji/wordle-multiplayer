@@ -49,9 +49,13 @@
       <app-lobby-screen
         [roomState]="roomState"
         [playerList]="playerList"
+        [currentPlayerId]="playerId"
         [isHost]="isHost"
         [isBusy]="isBusy"
         [settingsForm]="settingsForm"
+        [chatMessages]="chatMessages"
+        [chatError]="chatError"
+        [isSendingChatMessage]="isSendingChatMessage"
         (updateLobbySettings)="onUpdateLobbySettings()"
         (startRound)="onStartRound()"
         (endRound)="onEndRound()"
@@ -59,6 +63,7 @@
         (copyRoomLink)="onCopyRoomLink()"
         (returnToGame)="onReturnToGame()"
         (leaveLobby)="onLeaveLobby()"
+        (sendChatMessage)="onSendChatMessage($event)"
       ></app-lobby-screen>
     }
 
@@ -77,6 +82,9 @@
         [isGameInputEnabled]="isGameInputEnabled"
         [invalidWordVisible]="invalidWordVisible"
         [invalidWordMessage]="invalidWordMessage"
+        [chatMessages]="chatMessages"
+        [chatError]="chatError"
+        [isSendingChatMessage]="isSendingChatMessage"
         [getProgressCells]="getProgressCells.bind(this)"
         [getPlayerGuessUsageLabel]="getPlayerGuessUsageLabel.bind(this)"
         [isCurrentPlayer]="isCurrentPlayer.bind(this)"
@@ -85,6 +93,7 @@
         (keyPressed)="onKeyboardKey($event)"
         (submitted)="onSubmit($event)"
         (returnToLobby)="onReturnToLobby()"
+        (sendChatMessage)="onSendChatMessage($event)"
       ></app-game-screen>
     }
 

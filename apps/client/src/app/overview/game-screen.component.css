@@ -56,6 +56,13 @@
   gap: 14px;
 }
 
+.side-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .progress-panel,
 .board-panel {
   background: #ffffff;
@@ -70,7 +77,7 @@
   flex-direction: column;
   gap: 8px;
   overflow: auto;
-  order: 2;
+  flex: 1 1 auto;
 }
 
 .progress-row {
@@ -175,7 +182,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  order: 1;
+}
+
+.chat-panel {
+  flex: 0 0 320px;
+  min-height: 260px;
 }
 
 .game-meta {
